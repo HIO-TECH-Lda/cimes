@@ -1,0 +1,31 @@
+# Dependências
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+.next/
+out/
+build/
+dist/
+
+# Ambiente — nunca versionar segredos (R-12)
+.env
+.env.*
+!.env.example
+
+# Testes e ferramentas
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Armazenamento local de ficheiros
+storage/
