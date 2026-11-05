@@ -80,6 +80,12 @@ export const pt = {
     pendenteDescricao: "A tua conta foi criada, mas ainda não tens papéis atribuídos. Contacta o RH.",
     verificacaoTitulo: "Verifica o teu e-mail",
   },
+  altcha: {
+    label: "Não sou um robô",
+    verificando: "A verificar…",
+    verificado: "Verificado",
+    erro: "Falhou. Tenta de novo.",
+  },
   roles: {
     titulo: "Utilizadores e papéis",
     conceder: "Conceder papel",
