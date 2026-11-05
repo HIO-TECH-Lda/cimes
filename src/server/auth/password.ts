@@ -1,25 +1,16 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-/**
+﻿/**
  * Política de senhas (RF-AUT-04): pelo menos 10 caracteres; rejeitar as 10 000
  * senhas mais comuns (lista local no repositório, fonte SecLists/darkweb2017,
  * MIT) e senhas que contenham o e-mail. O hashing é feito pelo Better Auth.
  */
 
+import { COMMON_PASSWORDS_10K } from "@/server/auth/data/common-passwords";
+
 const MIN_LENGTH = 10;
 
-let commonPasswords: Set<string> | null = null;
-
-function loadCommonPasswords(): Set<string> {
-  commonPasswords ??= new Set(
-    readFileSync(join(import.meta.dirname, "data", "common-passwords-10k.txt"), "utf8")
-      .split(/\r?\n/)
-      .map((line) => line.trim().toLowerCase())
-      .filter((line) => line.length > 0),
-  );
-  return commonPasswords;
-}
+const commonPasswords: Set<string> = new Set(
+  COMMON_PASSWORDS_10K.map((line) => line.trim().toLowerCase()).filter((line) => line.length > 0),
+);
 
 export type PasswordIssue = {
   code: "TOO_SHORT" | "COMMON" | "CONTAINS_EMAIL";
@@ -36,7 +27,7 @@ export function validatePassword(email: string, password: string): PasswordIssue
     });
   }
   const lower = password.toLowerCase();
-  if (loadCommonPasswords().has(lower)) {
+  if (commonPasswords.has(lower)) {
     issues.push({
       code: "COMMON",
       message: "Esta senha está na lista das mais comuns e não pode ser usada",

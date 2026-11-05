@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 import { validatePassword } from "@/server/auth/password";
+import { COMMON_PASSWORDS_10K } from "@/server/auth/data/common-passwords";
 import { createChallenge, verifySolution } from "@/server/auth/altcha";
 import {
   createAccountLockService,
@@ -18,11 +17,7 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 
 /** Primeira senha da lista local com 10+ caracteres (determinística, sintética). */
 function commonPasswordOf10Plus(): string {
-  const lines = readFileSync(
-    join(import.meta.dirname, "../../src/server/auth/data/common-passwords-10k.txt"),
-    "utf8",
-  ).split(/\r?\n/);
-  const found = lines.find((l) => l.length >= 10);
+  const found = COMMON_PASSWORDS_10K.find((l) => l.length >= 10);
   if (!found) throw new Error("lista sem senha de 10 caracteres");
   return found;
 }
