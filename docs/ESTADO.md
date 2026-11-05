@@ -12,7 +12,7 @@ com um guião de demonstração em passos e dados sintéticos.
 | Marco | Âmbito | Estado | Requisitos cobertos | Como demonstrar |
 |---|---|---|---|---|
 | M0 — Fundações | Projecto pronto a crescer com segurança | Concluído (validação local verde; CI pendente de remoto — Q-004) | Fundações transversais (G.2, G.4, G.10, G.12, RNF-02, RNF-05, RNF-13, Anexo A) | Guião de demonstração abaixo |
-| M1 — Identidade, permissões e catálogos | M01, M02, base de M17 | Não iniciado | — | — |
+| M1 — Identidade, permissões e catálogos | M01, M02, base de M17 | Núcleo verde (ver abaixo; pendentes RF-ADM-12, RF-ADM-07 UI, RF-AUT-05/06/08/10 UI, SSO Entra em homologação) | RF-AUT-02/03/04/07/09/11, RF-ADM-01 a 06, 08, 09, 10, 11, 13, 14, RF-AUD-01 a 04 | Guião de demonstração M1 abaixo |
 | M2 — Vagas e portal do candidato | M03, M04, base de M14 | Não iniciado | — | — |
 | M3 — Triagem e selecção | M06, M08, RF-PLN-01/03/04/07 | Não iniciado | — | — |
 | M4 — Contratos, assinaturas e documentos | M09, M10 (MVP) | Não iniciado | — | — |
@@ -114,6 +114,84 @@ Ordem de execução, com testes antes da implementação sempre que aplicável:
 - SSO Entra real só é verificável em homologação (precisa de registo da aplicação em
   Azure pelo ICT); em desenvolvimento/testes usa `STAFF_AUTH_MODE=local`.
 
+### Estado do M1 após a sessão de 2026-11-05 (validação local verde)
+
+`npm run check` verde: lint, tipos, 491 unitários, integração com Testcontainers e
+E2E `@smoke` 21/21 nos três motores (chromium, firefox, webkit). Commits desde
+`0bd153d` até `e2e2025`.
+
+Implementado:
+
+- **Autorização (RF-AUT-11):** matriz C.3 como dados em `permissions.ts`, `Principal`,
+  `assertCan`; testes gerados da matriz + IDOR → 404.
+- **Auditoria (RF-AUD-01 a 04):** serviço `audit()`, append-only, página
+  `/app/auditoria` com filtros e CSV por âmbito (AUD/RH-G/ADM).
+- **Autenticação M01:** entrada local de staff e candidato (`/entrar`, `/registar`),
+  "Acesso pendente", destino pós-login decidido no servidor
+  (`/api/entrar/destino`), bloqueio progressivo (5/15 min → captcha, 10 → lock,
+  RF-AUT-07), senhas com lista das 10 000 comuns (RF-AUT-04), registo com aviso de
+  privacidade + consentimento + ALTCHA (RF-AUT-03/R-09), verificação de e-mail na
+  fila/outbox.
+- **ALTCHA próprio:** o pacote `altcha` tinha incompatibilidades com React 19 e
+  `crypto.subtle` era lento em WebKit → componente próprio
+  (`src/components/altcha-field.tsx`) com SHA-256 puro (`src/lib/sha256.ts`,
+  verificado contra `node:crypto`). O CSP ficou apertado (`worker-src` removido).
+- **Back-office M02:** `/app/catalogos` (locais, departamentos, instituições,
+  áreas/cursos, disciplinas, competências, modelos de avaliação/documento, avisos,
+  checklist — RN-ADM-01/02), `/app/parametros` (RF-ADM-11, Zod + auditoria
+  antigo/novo), `/app/utilizadores` (RF-AUT-09), `/app/saude` (RF-ADM-14).
+- **Bug crítico corrigido (RF-AUT-06):** uma sessão de staff criada após >30 min de
+  inactividade era revogada imediatamente e `lastSeenAt` nunca recuperava —
+  bloqueio permanente do staff. Agora o próprio login reinicia a janela
+  (`staffLastActivity`, `tests/unit/session-activity.test.ts`).
+- **Limites por IP (RF-AUT-07):** `/sign-in/email` 30/15 min (a regra predefinida do
+  Better Auth, 3/10s, partia E2E e utilizadores atrás de NAT); registo 5/h;
+  recuperação 3/h. Só respostas 401 alimentam o bloqueio progressivo (429/5xx não).
+- **Seeds:** aviso de privacidade `2026-01` PUBLISHED; script de dev
+  `prisma/seed/desbloquear-dev.ts` (corre no globalSetup do Playwright).
+
+Pendentes para fechar o M1:
+
+- RF-ADM-12 — directório de colaboradores: importação CSV com simulação e relatório
+  por linha (RN-ADM-03).
+- RF-ADM-07 — feriados nacionais (regra domingo→segunda) e locais: UI no back-office.
+- RF-AUT-05 — recuperação de senha: páginas pedido/redefinição (o serviço existe).
+- RF-AUT-06 — ecrã "Sessões activas" com terminar sessão individual.
+- RF-AUT-08/10 — mudança de e-mail e "A minha conta" (dados, senha, sessões,
+  pedido de eliminação RF-PDP-04/05).
+- Verificação de e-mail — página de retorno do link (a notificação está no outbox;
+  envio real chega com M2/G.9).
+- RF-AUT-01 — SSO Entra: código pronto, validação só em homologação (P-20).
+- Limitação conhecida: LOGIN_FAILED é reportado pelo cliente
+  (`/api/entrar/falha`); o hook server-side do Better Auth 1.7 não expõe o e-mail
+  tentado — registar a limitação para revisão em M9 (endurecimento).
+
+### Guião de demonstração M1 (dados sintéticos)
+
+Pré-requisito: M0 passos 1-3 (base de dados, migrações e `npm run dev` na :3000 ou
+:3100) e seed aplicado (`prisma/seed/seed.ts` — utilizadores sintéticos
+`@exemplo.mz`, senha `Cimes!Dev2026`; `admin@exemplo.mz` = SYSTEM_ADMIN).
+
+1. **Entrada de colaborador (RF-AUT-02):** `/entrar`, separador "Colaboradores",
+   `admin@exemplo.mz` / `Cimes!Dev2026` → destino decidido no servidor → `/app`.
+2. **Back-office (RF-AUT-09):** `/app/utilizadores` — ver directório, conceder
+   `TUTOR` a `tutor1@exemplo.mz` no departamento de destino; ficar sem permissão em
+   `/app/parametros` com um papel sem acção → "Acesso negado" (403 server-side).
+3. **Parâmetros (RF-ADM-11):** `/app/parametros` — editar um parâmetro; na auditoria
+   aparece antigo→novo com actor.
+4. **Auditoria (RF-AUD-04):** `/app/auditoria` — filtrar por acção `LOGIN_SUCCEEDED`;
+   exportar CSV (também `/app/auditoria/csv`).
+5. **Catálogos (RF-ADM-01/02, RN-ADM-01/02):** `/app/catalogos` — desactivar um
+   local já referenciado → desactiva (nunca apaga); tentar apagar → recusado.
+6. **Registo de candidato (RF-AUT-03):** `/registar` — e-mail sintético novo,
+   senha forte, resolver ALTCHA, aceitar aviso de privacidade, marcar bolsa
+   (opcional) → `/registar?ok=1`; na auditoria, consentimentos gravados; no outbox
+   (Mailpit :8025) a notificação de verificação de e-mail.
+7. **Bloqueio progressivo (RF-AUT-07):** falhar a senha 5 vezes → captcha passa a
+   ser exigido; falhar 10 → conta bloqueada 30 min (mensagem N-29). Em dev,
+   `npx tsx prisma/seed/desbloquear-dev.ts` desbloqueia.
+8. **E2E completo:** `npx playwright test` — 3 jornadas `@smoke` nos três motores.
+
 ## Guião de demonstração (M0, dados sintéticos)
 
 1. Arrancar a base de desenvolvimento:
@@ -136,8 +214,9 @@ Ordem de execução, com testes antes da implementação sempre que aplicável:
    back-office responde.
 7. Verificar a página de erro neutra (R-04): `GET /pagina-que-nao-existe` → 404 com
    "Página não encontrada".
-8. Correr a verificação completa: `npm run check` (lint → tipos → unitários 16 →
-   integração 3 com Testcontainers → E2E fumo 4 nos três motores).
+8. Correr a verificação completa: `npm run check` (lint → tipos → unitários 491 →
+   integração com Testcontainers → E2E `@smoke` 7 jornadas nos três motores: 4 de
+   M0 + 3 de M1).
 9. Arrancar o worker em desenvolvimento (opcional): `npm run worker:dev` — valida a
    config, regista "worker iniciado" no log pino e fica vivo (sem tarefas até M14).
 
@@ -156,3 +235,13 @@ Ordem de execução, com testes antes da implementação sempre que aplicável:
 | Anexo I (variáveis de ambiente) | `.env.example`, `.github/workflows/ci.yml` | `tests/unit/config.test.ts` | ✅ |
 | R-04 (404 neutro) | `src/app/(publico)/nao-encontrada`, páginas de erro | `tests/e2e/smoke.spec.ts` | ✅ |
 | CI (G.12) | `.github/workflows/ci.yml` | — | ⏳ Q-004 |
+| RF-AUT-02/03 (entrada e registo) | `src/app/(auth)/entrar`, `src/app/(auth)/registar`, `src/components/entrar-forms.tsx`, `src/app/api/registar`, `src/app/api/entrar/*` | `tests/unit/candidate-registration.test.ts`, `tests/e2e/auth-m1.spec.ts` | ✅ |
+| RF-AUT-04 (senha forte) | `src/server/auth/password.ts`, `src/server/auth/data/common-passwords.ts` | `tests/unit/auth.test.ts` | ✅ |
+| RF-AUT-07 (limites e bloqueio) | `src/server/auth/account-lock.ts`, `src/server/auth/better-auth.ts`, `src/app/api/entrar/falha` | `tests/integration/authorization.test.ts` (bloqueio RF-AUT-07), `tests/unit/auth.test.ts` | ✅ (falha reportada pelo cliente — ver limitação em M9) |
+| RF-AUT-06 (inactividade 30 min) | `src/server/auth/session.ts` | `tests/unit/session-activity.test.ts` | ✅ (ecrã sessões pendente) |
+| RF-AUT-09/11 (papéis + matriz) | `src/server/auth/permissions.ts`, `src/server/auth/principal.ts`, `src/server/auth/assert-can.ts`, `src/app/app/utilizadores` | `tests/unit/permissions.test.ts`, `tests/integration/authorization.test.ts` | ✅ |
+| RF-AUD-01 a 04 (auditoria) | `src/server/services/audit.ts`, `src/server/services/audit-diff.ts`, `src/app/app/auditoria`, `src/app/app/auditoria/csv` | `tests/integration/authorization.test.ts` (append-only), `tests/unit/audit-diff.test.ts`, `tests/e2e/auth-m1.spec.ts` (permissão) | ✅ |
+| RF-ADM-11 (parâmetros) | `src/server/services/settings.ts`, `src/app/app/parametros` | `tests/unit/settings.test.ts`, `tests/unit/settings-service.test.ts` | ✅ |
+| RF-ADM-01 a 06, 13 (catálogos) | `src/server/services/catalog.ts`, `src/app/app/catalogos` | `tests/unit/catalog.test.ts` (RN-ADM-01/02) | ✅ |
+| RF-ADM-14 (saúde) | `src/app/app/saude` | manual (guião acima) | ✅ |
+| RF-AUT-03 (ALTCHA) | `src/server/auth/altcha.ts`, `src/components/altcha-field.tsx`, `src/lib/sha256.ts`, `src/app/api/captcha/altcha` | `tests/unit/sha256.test.ts`, `tests/e2e/auth-m1.spec.ts` (registo) | ✅ |
