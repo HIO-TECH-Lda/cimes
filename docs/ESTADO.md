@@ -118,6 +118,10 @@ Parâmetros novos no `Setting` (seed + Zod): `internship.maxTotalMonths`,
   26 unitários + 5 de integração. Pesos por omissão do score ficam como Q-005
   (P-36 provisório: 60/20/20).
 
+
+- **Incremento 3 - portal público (concluído a 2026-11-05):** /vagas com filtros GET por local e área (funciona sem JavaScript, RF-VAG-04) e /vagas/{código} em SSR com todos os campos pedidos e 404 para vaga inexistente ou fora da janela (R-04, RN-VAG-01). Página inicial passa a encaminhar para a lista; há uma vaga sintética de demonstração na BD de dev (VAG-2026-0001).
+- **Incremento 4 - perfil do candidato (concluído a 2026-11-05):** esquemas Zod partilhados cliente/servidor (RF-CAN-02) em src/server/domain/candidate-profile.ts, cifra AES-256-GCM de BI/NUIT no formato 1:keyId:iv:cifra:tag (src/server/infra/pii.ts) e hash HMAC-SHA-256 para unicidade do BI (RF-CAN-03, P-06), serviço por passos com transacção (a fila nasce no passo 1, ullName é obrigatório) e índice único filtrado como última defesa, API POST /api/candidato/perfil/{passo}, assistente utilizável a 360 px com indicador de progresso (RF-CAN-01) e painel /candidato. Testes: 29 unitários novos (PII, domínio, serviço). O passo Documentos do assistente fica para o incremento 5.
+
 ### Bloqueios/decisões abertas que tocam M2
 
 - Divisor de PDF (RF-DOC-04) e conversão de imagens (RF-DOC-03) dependem de
