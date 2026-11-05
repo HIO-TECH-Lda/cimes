@@ -22,6 +22,7 @@ export default async function AppHomePage() {
     { href: "/app/feriados", label: pt.feriados.titulo },
     { href: "/app/auditoria", label: pt.app.auditoria },
     { href: "/app/saude", label: pt.app.saude },
+    { href: "/conta", label: pt.conta.titulo },
   ];
 
   return (

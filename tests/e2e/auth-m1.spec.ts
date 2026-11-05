@@ -57,4 +57,18 @@ test.describe("@smoke M1 - identidade e acesso", () => {
     await page.goto("/app/parametros");
     await expect(page.getByText("Acesso negado para esta área.")).toBeVisible();
   });
+
+  test("a minha conta mostra dados, senha e sessões activas (RF-AUT-06/10)", async ({ page }) => {
+    await page.goto("/entrar");
+    await page.getByRole("tab", { name: "Colaboradores" }).click();
+    await page.getByLabel("E-mail").fill(ADMIN.email);
+    await page.getByLabel("Senha").fill(ADMIN.password);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page).toHaveURL(/\/app$/);
+
+    await page.goto("/conta");
+    await expect(page.getByRole("heading", { name: "A minha conta" })).toBeVisible();
+    await expect(page.getByText("Sessões activas", { exact: true })).toBeVisible();
+    await expect(page.locator("#conta-nome")).toHaveValue(/admin/i);
+  });
 });

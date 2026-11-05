@@ -66,6 +66,22 @@ export function createAuth() {
         lockedUntil: { type: "date", fieldName: "lockedUntil", input: false },
         lastSeenAt: { type: "date", fieldName: "lastSeenAt", input: false },
       },
+      changeEmail: {
+        // RF-AUT-08: a senha actual é verificada pela nossa rota
+        // /api/conta/mudar-email; o Better Auth envia a confirmação para o
+        // endereço antigo (aviso + link que aplica a mudança) e mantém o
+        // e-mail actual até confirmação.
+        enabled: true,
+        sendChangeEmailConfirmation: async ({ user, url }) => {
+          await notifications.create({
+            templateCode: "N-01",
+            recipientUserId: user.id,
+            recipientEmail: user.email,
+            payload: { url },
+            idempotencyKey: `N-01:${user.id}:${url.split("token=")[1]?.split(".")[0] ?? ""}`,
+          });
+        },
+      },
     },
 
     emailAndPassword: {

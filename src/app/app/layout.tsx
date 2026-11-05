@@ -12,8 +12,10 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
     { href: "/app/utilizadores", label: pt.app.utilizadores },
     { href: "/app/parametros", label: pt.app.parametros },
     { href: "/app/catalogos", label: pt.app.catalogos },
+    { href: "/app/feriados", label: pt.feriados.titulo },
     { href: "/app/auditoria", label: pt.app.auditoria },
     { href: "/app/saude", label: pt.app.saude },
+    { href: "/conta", label: pt.conta.titulo },
   ];
   return (
     <div className="flex min-h-dvh flex-col">
