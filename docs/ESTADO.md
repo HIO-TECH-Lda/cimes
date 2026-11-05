@@ -13,7 +13,7 @@ com um guião de demonstração em passos e dados sintéticos.
 |---|---|---|---|---|
 | M0 — Fundações | Projecto pronto a crescer com segurança | Concluído (validação local verde; CI pendente de remoto — Q-004) | Fundações transversais (G.2, G.4, G.10, G.12, RNF-02, RNF-05, RNF-13, Anexo A) | Guião de demonstração abaixo |
 | M1 — Identidade, permissões e catálogos | M01, M02, base de M17 | Núcleo verde (só RF-AUT-01 SSO Entra pendente de homologação — P-20) | RF-AUT-02/03/04/05/06/07/08/09/10/11, RF-ADM-01 a 14, RF-AUD-01 a 04 | Guião de demonstração M1 abaixo |
-| M2 — Vagas e portal do candidato | M03, M04, base de M14 | Não iniciado | — | — |
+| M2 — Vagas e portal do candidato | M03, M04, base de M14 | Em curso (plano abaixo) | — | — |
 | M3 — Triagem e selecção | M06, M08, RF-PLN-01/03/04/07 | Não iniciado | — | — |
 | M4 — Contratos, assinaturas e documentos | M09, M10 (MVP) | Não iniciado | — | — |
 | M5 — Estágio e acompanhamento | M11, tarefas de M14 | Não iniciado | — | — |
@@ -28,14 +28,88 @@ com um guião de demonstração em passos e dados sintéticos.
 
 ## Sessão actual
 
-- **Marco:** M1 — Identidade, permissões e catálogos (M01, M02, base de M17)
-- **Critérios de saída (Parte H):** RF-AUT-11 verde; entrada por SSO em homologação
-  (ou contas locais, P-20); catálogos e parâmetros geríveis; auditoria a gravar.
-- **Decisões prévias que se aplicam:** P-20 — colaboradores entram por Microsoft Entra ID
-  (MFA por acesso condicional); contas locais de colaborador servem desenvolvimento,
-  testes e contingência (`STAFF_AUTH_MODE=entra|local`). P-25 a P-28 — seeds iniciais do
-  Anexo F. Os modelos do Better Auth são gerados com o CLI da versão fixada e
-  reconciliados com o Anexo A; ajustes ficam num ADR (Anexo A, nota final).
+- **Marco:** M2 — Vagas e portal do candidato (M03, M04, base de M14)
+- **Critérios de saída (Parte H):** jornadas E2E-01 e E2E-02 verdes a 360 px nos três
+  motores; ficheiros cifrados em disco; regras RN-ELG com testes por regra.
+- **Decisões prévias que se aplicam:** regras R-01 a R-20; dependências do Anexo L
+  instaladas na primeira utilização (padrão ADR-0002); catálogos do M02 alimentam
+  vagas e perfil; o portal público é SSR sem JS obrigatório (RF-VAG-04).
+
+### Plano M2 (escrito a 2026-11-05, antes de qualquer código de M2)
+
+Âmbito da especificação: M03 (RF-VAG-01 a 07, RN-VAG-01/02), M04 (perfil CAN,
+documentos DOC, elegibilidade ELG, RF-CAN-01 a 09, RF-DOC-01 a 08), RF-ACA-01
+(notas manuais das disciplinas-chave) e base de M14 (outbox, worker, N-01 a N-04,
+N-09, N-21, N-22). Modelos do Anexo A já existem desde a migração inicial.
+
+Ordem de execução, com testes do domínio antes da implementação:
+
+1. **Base de M14 — outbox e worker (RF-NOT-01 a 05, 09)**
+   - Worker com agendador injectável (G.10): tarefas na tabela `Job` com
+     `uniqueKey`, lock e registo de execução; `notifications.send` contínua a cada
+     15 s processa a outbox `Notification`.
+   - Transporte SMTP (Nodemailer, dev = Mailpit :8025); retentativas 1 min, 5 min,
+     30 min, 2 h, 12 h → `FAILED` + N-30 (RF-NOT-03); aviso na aplicação
+     (`InAppNotification`) criado junto (RF-NOT-04).
+   - Testes: envio idempotente, retentativas com relógio falso, falha final N-30.
+2. **M03 domínio — vagas**
+   - `src/server/domain/state-machines/opening.ts`: máquina D.2 como dados, testes
+     de todas as transições não permitidas.
+   - `src/server/domain/sequence.ts`: código `VAG-AAAA-NNNN` via `SequenceCounter`
+     (RF-VAG-05), teste de concorrência na integração.
+   - Esquema Zod do pedido de vaga (RF-VAG-01; pesos do score somam 100,
+     RN-VAG-02); serviço com âmbito (chefe D só os seus; RH tudo), fluxo de
+     aprovação com comentários (RF-VAG-02), N-21/N-22 na mesma transacção.
+   - Publicar com janela (RF-VAG-03); tarefa `openings.closeExpired` a cada 5 min;
+     verificação da hora no servidor na submissão (RN-VAG-01).
+   - Pós-publicação: só descrição e prazo; prorrogação auditada; perfil de score
+     editável até ao fecho (RF-VAG-06).
+   - Lista back-office com contadores de candidaturas e CSV (RF-VAG-07).
+3. **M03 portal público (RF-VAG-04):** `/vagas` (filtros local/área, ordenação pelo
+   fecho mais próximo) e `/vagas/{codigo}` — SSR, sem JS obrigatório; anónimo lê.
+4. **M04 perfil do candidato (RF-CAN-01 a 03):** campos da tabela CAN em
+   `CandidateProfile`, esquema Zod partilhado cliente/servidor, passos com
+   gravação ao concluir e indicador de progresso, 360 px; unicidade do BI por
+   hash HMAC (`PII_HMAC_KEY`, RF-CAN-03), validade do BI (P-07), celular E.164.
+5. **M04 documentos (RF-DOC-01 a 08)**
+   - `StoredFile` cifrado em disco (AES-256-GCM), SHA-256, validação do tipo real
+     pelos primeiros bytes, reconstrução de PDF (pdf-lib) e re-codificação de
+     imagens com sharp sem EXIF (RF-DOC-05).
+   - Rota autenticada `/api/ficheiros/[id]` com `Content-Disposition`, `nosniff`,
+     CSP `sandbox` (RF-DOC-06); pré-visualização pdf.js por importação dinâmica.
+   - Estados `UPLOADED → VALIDATED/REJECTED (→ REPLACED)` (RF-DOC-07) com N-09;
+     auditoria `SENSITIVE_DATA_VIEWED` ao abrir BI/NUIT (RF-DOC-08).
+   - Fotografia → PDF no cliente com pdf-lib (RF-DOC-03); divisor de PDF (RF-DOC-04).
+   - ADR-0003: instalação das dependências fixadas do Anexo L na primeira
+     utilização (nodemailer, React Email, pdf-lib, pdfjs-dist, sharp).
+6. **M04 elegibilidade (RN-ELG-01 a 08):** `src/server/domain/eligibility.ts`
+   função pura, testes por regra com os vectores do Anexo H; resultado
+   `ELIGIBLE`/`TO_CONFIRM` + motivos.
+7. **M04 candidatura (RF-CAN-04 a 08, RF-ACA-01)**
+   - Máquina de estados da candidatura (D.2) como dados com testes.
+   - Candidatar-se: ecrã de revisão com elegibilidade, documentos em falta e notas
+     das disciplinas-chave (RF-ACA-01); declaração obrigatória; submissão grava
+     `profileSnapshotJson` (RF-CAN-05) e N-03; limite por ciclo
+     `application.maxActivePerCycle` (P-12, RF-CAN-08).
+   - Painel do candidato (RF-CAN-06): candidaturas com estado e linha temporal,
+     próximas acções (mensagens chegam com M3); retirar candidatura (RF-CAN-07).
+8. **E2E-01 e E2E-02** @smoke a 360×640 nos três motores (+ axe), e
+   `npm run check` verde → actualizar ESTADO/CHANGELOG/INVENTARIO-DADOS → parar
+   para validação.
+
+Parâmetros novos no `Setting` (seed + Zod): `internship.maxTotalMonths`,
+`eligibility.finalistMaxMonthsToGraduation`, `eligibility.maxMonthsSinceGraduation`,
+`eligibility.biExpiredPolicy`, `application.maxActivePerCycle`, `academic.passMark`.
+
+### Bloqueios/decisões abertas que tocam M2
+
+- Divisor de PDF (RF-DOC-04) e conversão de imagens (RF-DOC-03) dependem de
+  pdfjs-dist/pdf-lib no cliente — bundles carregados só por importação dinâmica
+  (RF-CAN-09, 200 KB de JS inicial).
+- Antivírus opcional (G.6) fica para M9; a reconstrução do PDF já remove código
+  activo.
+- Envio real de e-mail usa Mailpit em desenvolvimento; Graph/SMTP de produção
+  só em homologação (P-21, tal como o SSO do RF-AUT-01).
 
 ### Plano M1 (escrito a 2026-11-05, antes de qualquer código de M1)
 
