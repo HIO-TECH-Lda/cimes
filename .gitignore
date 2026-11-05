@@ -3,6 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
+# Logs locais
+npm-install.log
+*.log
+
 # Build
 .next/
 out/
@@ -29,3 +33,7 @@ Thumbs.db
 
 # Armazenamento local de ficheiros
 storage/
+.tmp-storage/
+
+# Cliente Prisma gerado (src/generated)
+src/generated/
