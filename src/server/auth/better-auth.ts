@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+﻿import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 
@@ -39,7 +39,11 @@ export function createAuth() {
   return betterAuth({
     secret: cfg.betterAuthSecret,
     baseURL: cfg.publicBaseUrl,
-    trustedOrigins: [cfg.publicBaseUrl],
+    // Fora de produção, o dev server e o Playwright (3100) são origens locais
+    // legítimas; em produção vale só a base configurada (RNF-05).
+    trustedOrigins: cfg.isProduction
+      ? [cfg.publicBaseUrl]
+      : [cfg.publicBaseUrl, "http://localhost:3000", "http://localhost:3100"],
 
     database: prismaAdapter(prisma, { provider: "sqlserver" }),
     advanced: { database: { joins: true } },
@@ -126,13 +130,16 @@ export function createAuth() {
       window: 60,
       max: 100,
       customRules: {
+        // RF-AUT-07: entrada limitada a 30 por 15 minutos por IP — travão anti-
+        // flood para redes partilhadas (NAT); o ataque por conta é travado pelo
+        // bloqueio progressivo (5/15 min captcha, 10/15 min lock, account-lock.ts).
+        // A regra especial predefinida do Better Auth (3/10s) partia jornadas E2E
+        // e utilizadores reais atrás do mesmo IP.
+        "/sign-in/email": { window: 15 * 60, max: 30 },
         // RF-AUT-07: registo limitado a 5 por hora por IP.
         "/sign-up/email": { window: 60 * 60, max: 5 },
         // RF-AUT-07: recuperação limitada a 3 por hora por IP.
         "/forget-password": { window: 60 * 60, max: 3 },
-        // RF-AUT-07: entrada com 10 tentativas por 15 minutos por IP; o
-        // bloqueio por conta (5/15 min captcha, 10/15 min lock) é o account-lock.ts.
-        "/sign-in/email": { window: 15 * 60, max: 10 },
       },
     },
 
