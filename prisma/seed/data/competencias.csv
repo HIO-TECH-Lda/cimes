@@ -1,0 +1,18 @@
+codigo;nome;categoria;sinonimos
+EXCEL;Microsoft Excel;Informática;excel|folha de calculo
+SQL;SQL e bases de dados;Informática;sql|mysql|sql server|postgresql|oracle
+PYTHON;Python;Programação;python
+JAVASCRIPT;JavaScript / TypeScript;Programação;javascript|typescript|node|react
+JAVA;Java;Programação;java
+DOTNET;C# e .NET;Programação;csharp|dotnet|asp net
+REDES_CISCO;Redes (CCNA);Infra-estrutura;ccna|cisco|tcp ip
+AUTOCAD;AutoCAD e CAD;Engenharia;autocad|solidworks
+PLC;Automação industrial (PLC);Engenharia;plc|automacao industrial|scada
+SOLDADURA;Soldadura;Técnica;soldadura
+MANUT_PREVENTIVA;Manutenção preventiva;Técnica;manutencao preventiva|manutencao planeada
+ERP;Sistemas de gestão (ERP);Gestão;erp|primavera|sap|phc
+ANALISE_DADOS;Análise de dados e relatórios;Gestão;analise de dados|power bi|tableau
+CONDUCAO;Carta de condução;Geral;carta de conducao|licenca de conducao
+PRIMEIROS_SOCORROS;Primeiros socorros;HSE;primeiros socorros
+HSE_CERT;Formação em segurança (NEBOSH, IOSH, ISO 45001);HSE;nebosh|iosh|iso 45001
+ATENDIMENTO;Atendimento ao cliente;Comercial;atendimento ao cliente

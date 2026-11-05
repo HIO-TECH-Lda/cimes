@@ -1,0 +1,30 @@
+codigo;nome;sigla;tipo;provincia
+UEM;Universidade Eduardo Mondlane;UEM;PUBLIC;MAPUTO_CIDADE
+UP_MAPUTO;Universidade Pedagógica de Maputo;UP-Maputo;PUBLIC;MAPUTO_CIDADE
+UNIZAMBEZE;Universidade Zambeze;UniZambeze;PUBLIC;SOFALA
+UNILICUNGO;Universidade Licungo;UniLicungo;PUBLIC;ZAMBEZIA
+UNIPUNGUE;Universidade Púnguè;UniPúnguè;PUBLIC;MANICA
+UNIROVUMA;Universidade Rovuma;UniRovuma;PUBLIC;NAMPULA
+UNISAVE;Universidade Save;UniSave;PUBLIC;GAZA
+UNILURIO;Universidade Lúrio;UniLúrio;PUBLIC;NAMPULA
+UJC;Universidade Joaquim Chissano;UJC;PUBLIC;MAPUTO_CIDADE
+ISCISA;Instituto Superior de Ciências de Saúde;ISCISA;PUBLIC;MAPUTO_CIDADE
+ISCAM;Instituto Superior de Contabilidade e Auditoria de Moçambique;ISCAM;PUBLIC;MAPUTO_CIDADE
+ISAP;Instituto Superior de Administração Pública;ISAP;PUBLIC;MAPUTO_CIDADE
+ESCN;Escola Superior de Ciências Náuticas;ESCN;PUBLIC;MAPUTO_CIDADE
+ISPG;Instituto Superior Politécnico de Gaza;ISPG;PUBLIC;GAZA
+ISPM;Instituto Superior Politécnico de Manica;ISPM;PUBLIC;MANICA
+ISPS;Instituto Superior Politécnico de Songo;ISPS;PUBLIC;TETE
+UCM;Universidade Católica de Moçambique;UCM;PRIVATE;SOFALA
+UNISCED;Universidade Aberta ISCED;UnISCED;PRIVATE;SOFALA
+ISCTAC;Instituto Superior de Ciências e Tecnologia Alberto Chipande;ISCTAC;PRIVATE;SOFALA
+UJPM;Universidade Jean Piaget de Moçambique;;PRIVATE;SOFALA
+UPOLITECNICA;Universidade Politécnica;A Politécnica;PRIVATE;MAPUTO_CIDADE
+ISCTEM;Instituto Superior de Ciências e Tecnologia de Moçambique;ISCTEM;PRIVATE;MAPUTO_CIDADE
+ISUTC;Instituto Superior de Transportes e Comunicações;ISUTC;PRIVATE;MAPUTO_CIDADE
+USTM;Universidade São Tomás de Moçambique;USTM;PRIVATE;MAPUTO_CIDADE
+UDM;Universidade Técnica de Moçambique;UDM;PRIVATE;MAPUTO_CIDADE
+UMBB;Universidade Mussa Bin Bique;UMBB;PRIVATE;NAMPULA
+UWUTIVI;Universidade Wutivi;;PRIVATE;
+ESEG;Escola Superior de Economia e Gestão;ESEG;PRIVATE;MAPUTO_CIDADE
+ISET;Instituto Superior de Educação e Tecnologia (One World University);ISET;PRIVATE;MAPUTO_PROVINCIA

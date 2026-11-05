@@ -1,0 +1,26 @@
+area_codigo;area_nome;curso_codigo;curso_nome
+INFORMATICA;Informática e Computação;ENG_INFORMATICA;Engenharia Informática
+INFORMATICA;Informática e Computação;CIENCIAS_COMPUTACAO;Ciências da Computação
+INFORMATICA;Informática e Computação;ENG_INFORMATICA_TELECOM;Engenharia Informática e de Telecomunicações
+ELECTRICA;Engenharia Eléctrica e Electrónica;ENG_ELECTROTECNICA;Engenharia Electrotécnica
+ELECTRICA;Engenharia Eléctrica e Electrónica;ENG_ELECTRONICA;Engenharia Electrónica
+MECANICA;Engenharia Mecânica;ENG_MECANICA;Engenharia Mecânica
+CIVIL;Engenharia Civil;ENG_CIVIL;Engenharia Civil
+QUIMICA;Química;QUIMICA;Química
+QUIMICA;Química;ENG_QUIMICA;Engenharia Química
+FISICA_MATEMATICA;Física, Matemática e Estatística;FISICA;Física
+FISICA_MATEMATICA;Física, Matemática e Estatística;MATEMATICA;Matemática
+FISICA_MATEMATICA;Física, Matemática e Estatística;ESTATISTICA;Estatística
+GESTAO;Gestão e Administração;GESTAO_EMPRESAS;Gestão de Empresas
+CONTABILIDADE_FINANCAS;Contabilidade, Finanças e Economia;CONTABILIDADE_AUDITORIA;Contabilidade e Auditoria
+CONTABILIDADE_FINANCAS;Contabilidade, Finanças e Economia;ECONOMIA;Economia
+CONTABILIDADE_FINANCAS;Contabilidade, Finanças e Economia;GESTAO_FINANCEIRA;Gestão Financeira
+LOGISTICA;Logística e Transportes;LOGISTICA_TRANSPORTES;Logística e Transportes
+NAUTICAS;Ciências Náuticas;PILOTAGEM;Pilotagem
+NAUTICAS;Ciências Náuticas;MAQUINAS_MARITIMAS;Máquinas Marítimas
+DIREITO;Direito;DIREITO;Direito
+RH;Recursos Humanos;GESTAO_RH;Gestão de Recursos Humanos
+COMUNICACAO;Comunicação e Marketing;COMUNICACAO;Ciências da Comunicação
+COMUNICACAO;Comunicação e Marketing;MARKETING;Marketing
+AMBIENTE_HSE;Ambiente, Higiene e Segurança;HST;Higiene e Segurança no Trabalho
+AMBIENTE_HSE;Ambiente, Higiene e Segurança;ENG_AMBIENTE;Engenharia do Ambiente
