@@ -109,3 +109,9 @@ px prisma validate e o runtime 1.7.17
 - **Consequencias:** o worker envia por SMTP (Mailpit :1025 em desenvolvimento)
   com modelos React Email; novos pacotes entram em `package.json` com versao
   fixada e dependabot/renovate trata patches; saltos de major exigem novo ADR.
+
+> **Registo da instalacao (2026-11-05, incremento 5):** pdf-lib 1.17.1,
+> sharp 0.35.5 (dependencias) e pdfjs-dist 6.5.438 (só no cliente, por
+> importacao dinamica — RF-CAN-09, 200 KB) instalados na primeira utilizacao,
+> conforme este ADR.
+
