@@ -134,6 +134,23 @@ export function createOpeningRepository(prisma: DbClient) {
       });
     },
 
+    /** Catálogos para os filtros do portal (RF-VAG-04): dados públicos. */
+    async listPublicFilters() {
+      const [locais, areas] = await Promise.all([
+        client.location.findMany({
+          where: { active: true },
+          select: { id: true, code: true, name: true },
+          orderBy: { name: "asc" },
+        }),
+        client.fieldOfStudy.findMany({
+          where: { active: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        }),
+      ]);
+      return { locais, areas };
+    },
+
     /** Vagas PUBLISHED com fecho vencido — alvo do `openings.closeExpired`. */
     async findExpired(now: Date, take = 100) {
       return client.opening.findMany({

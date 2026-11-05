@@ -626,6 +626,11 @@ export function createOpeningService(deps: {
       if (!opening) throw new NotFoundError();
       return opening;
     },
+
+    /** Locais e áreas para os filtros do portal (dados públicos do catálogo). */
+    async publicFilters() {
+      return openings.listPublicFilters();
+    },
   };
 }
 

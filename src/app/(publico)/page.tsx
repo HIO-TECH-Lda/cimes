@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pt } from "@/i18n/pt-MZ";
 
 /**
- * M0: página de entrada do portal público. A lista real de vagas publicadas chega
- * no M2 (RF-VAG-04); esta página é a fundação do layout e funciona sem JavaScript.
+ * Página de entrada do portal público (RF-VAG-04): encaminha para a lista de
+ * vagas abertas; funciona sem JavaScript.
  */
 export default function HomePage() {
   return (
@@ -15,11 +17,11 @@ export default function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>{pt.nav.publico}</CardTitle>
-            <CardDescription>{pt.home.semVagas}</CardDescription>
+            <CardDescription>{pt.home.descricao}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <a href="/entrar">{pt.nav.entrar}</a>
+              <Link href="/vagas">{pt.home.verVagas}</Link>
             </Button>
           </CardContent>
         </Card>
