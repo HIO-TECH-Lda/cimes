@@ -17,9 +17,11 @@ const INTERNAL_PREFIXES = ["/app"] as const;
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
+  // IPv4-mapped IPv6 (::ffff:a.b.c.d) e zonas (%) normalizam-se para IPv4.
+  const normalize = (ip: string): string => ip.replace(/^::ffff:/i, "").replace(/%\w+$/, "").trim();
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    if (first) return normalize(first);
   }
   // Sem proxy à frente (desenvolvimento): considera-se rede interna.
   return "127.0.0.1";
@@ -36,9 +38,16 @@ export function proxy(request: NextRequest): NextResponse {
   if (isInternal) {
     const cfg = getConfig();
     const ip = clientIp(request);
-    if (cfg.internalAllowedCidrs.length > 0 && !ipInAnyCidr(ip, cfg.internalAllowedCidrs)) {
+    // Loopback (127.x, ::1 e ::ffff:127.x) é o próprio servidor: sempre interno.
+    // Em produção a restrição por CIDR continua a aplicar-se aos restantes IPs.
+    const isLoopback = ip === "127.0.0.1" || ip === "::1" || ip.startsWith("127.") || ip.startsWith("::ffff:127.");
+    if (
+      cfg.internalAllowedCidrs.length > 0 &&
+      !isLoopback &&
+      !ipInAnyCidr(ip, cfg.internalAllowedCidrs)
+    ) {
       // R-04: não revelar a existência da rota.
-      getProcessLogger().warn({ correlationId, path: requestPath }, "rota interna bloqueada por CIDR");
+      getProcessLogger().warn({ correlationId, path: requestPath, ip }, "rota interna bloqueada por CIDR");
       return new NextResponse(null, { status: 404 });
     }
   }
