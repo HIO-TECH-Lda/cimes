@@ -6,8 +6,11 @@ import { createJobRepository } from "@/server/repositories/job-repository";
 import { createNotificationRepository } from "@/server/repositories/notification-repository";
 import { createRoleAssignmentRepository } from "@/server/repositories/role-assignment-repository";
 import { getPrismaClient } from "@/server/repositories/db";
+import { createAuditService } from "@/server/services/audit";
 import { createJobRunner } from "@/server/services/jobs";
+import { createOpeningService } from "@/server/services/openings";
 import { createOutboxProcessor } from "@/server/services/outbox";
+import { createSettingService } from "@/server/services/settings";
 
 /**
  * Worker (G.10, base de M14): processo Node.js separado que executa as tarefas
@@ -46,13 +49,30 @@ async function main(clock: Clock = systemClock): Promise<void> {
   const notifications = createNotificationRepository(prisma);
   const jobs = createJobRepository(prisma);
   const outbox = createOutboxProcessor({ notifications, transport, clock, logger });
+  // RF-VAG-03: a tarefa `openings.closeExpired` corre a cada 5 minutos e fecha
+  // as vagas publicadas cuja janela de candidatura venceu (actor SYSTEM).
+  const openings = createOpeningService({
+    prisma,
+    audit: createAuditService(prisma, logger),
+    settings: createSettingService({ prisma, audit: createAuditService(prisma, logger) }),
+    clock,
+    logger,
+  });
   const jobRunner = createJobRunner({
     jobs,
     clock,
     workerId: `worker-${process.pid}`,
-    handlers: {}, // tarefas agendadas (openings.closeExpired, …) chegam nos próximos incrementos
+    handlers: {
+      "openings.closeExpired": async () => {
+        const fechadas = await openings.closeExpired();
+        if (fechadas.length > 0) logger.info({ fechadas }, "vagas fechadas automaticamente (prazo vencido)");
+      },
+    },
     logger,
   });
+
+  const CLOSE_EXPIRED_EVERY_MS = 5 * 60_000; // RF-VAG-03: a cada 5 minutos
+  await jobRunner.ensureRecurring({ type: "openings.closeExpired", uniqueKey: "openings.closeExpired", everyMs: CLOSE_EXPIRED_EVERY_MS });
 
   logger.info({ startedAt: clock.now().toISOString(), transport: transportKind }, "worker iniciado");
 
