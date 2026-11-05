@@ -12,7 +12,7 @@ com um guião de demonstração em passos e dados sintéticos.
 | Marco | Âmbito | Estado | Requisitos cobertos | Como demonstrar |
 |---|---|---|---|---|
 | M0 — Fundações | Projecto pronto a crescer com segurança | Concluído (validação local verde; CI pendente de remoto — Q-004) | Fundações transversais (G.2, G.4, G.10, G.12, RNF-02, RNF-05, RNF-13, Anexo A) | Guião de demonstração abaixo |
-| M1 — Identidade, permissões e catálogos | M01, M02, base de M17 | Núcleo verde (ver abaixo; pendentes RF-ADM-12, RF-ADM-07 UI, RF-AUT-05/06/08/10 UI, SSO Entra em homologação) | RF-AUT-02/03/04/07/09/11, RF-ADM-01 a 06, 08, 09, 10, 11, 13, 14, RF-AUD-01 a 04 | Guião de demonstração M1 abaixo |
+| M1 — Identidade, permissões e catálogos | M01, M02, base de M17 | Núcleo verde (só RF-AUT-01 SSO Entra pendente de homologação — P-20) | RF-AUT-02/03/04/05/06/07/08/09/10/11, RF-ADM-01 a 14, RF-AUD-01 a 04 | Guião de demonstração M1 abaixo |
 | M2 — Vagas e portal do candidato | M03, M04, base de M14 | Não iniciado | — | — |
 | M3 — Triagem e selecção | M06, M08, RF-PLN-01/03/04/07 | Não iniciado | — | — |
 | M4 — Contratos, assinaturas e documentos | M09, M10 (MVP) | Não iniciado | — | — |
@@ -166,6 +166,48 @@ Pendentes para fechar o M1:
   (`/api/entrar/falha`); o hook server-side do Better Auth 1.7 não expõe o e-mail
   tentado — registar a limitação para revisão em M9 (endurecimento).
 
+### Estado do M1 após a sessão de 2026-11-05 (parte 2 — conta, feriados e verificação)
+
+`npm run check` verde: lint, tipos, 518 unitários, integração com Testcontainers e
+E2E `@smoke` 27/27 nos três motores. Fechou os pendentes da lista anterior:
+
+- **RF-ADM-07 — feriados:** `/app/feriados` (gate `catalog.technicalManage`) com
+  regra domingo→segunda na fonte única `src/server/domain/holidays.ts` (seed +
+  testes importam daí); criar/duplicar/eliminar auditado; selector de local.
+- **RF-AUT-05 — recuperação de senha:** `/repor-senha` (pedido com resposta neutra
+  sem enumeração; token 60 min no caminho do link N-02) + redefinição; política de
+  senha verificada server-side via `POST /api/repor-senha/validar` (o token não
+  revela o e-mail, logo CONTAINS_EMAIL não é verificável aqui — nota abaixo).
+- **RF-AUT-06/10 — "A minha conta" (`/conta`):** dados (nome), mudança de senha
+  (opcionalmente terminando as outras sessões) e "Sessões activas" com terminar
+  cada sessão e terminar todas as outras.
+- **RF-AUT-08 — mudança de e-mail:** rota própria `/api/conta/mudar-email` que
+  verifica a senha actual no servidor (`verifyPassword`, scope "server") antes de
+  chamar o Better Auth; a confirmação vai para o endereço antigo (N-01 com
+  `requestType change-email-confirmation`) e o e-mail só muda após confirmação.
+  O Better Auth 1.7 não tem hooks por caminho para auditar PASSWORD_RESET /
+  EMAIL_CHANGED — registar em M9 (endurecimento). O aviso N-29 ao endereço antigo
+  fica subsumido pelo e-mail de confirmação do Better Auth (adaptação ao Anexo A).
+- **RF-AUT-03 — callback de verificação:** registo agora passa `callbackURL` e o
+  Better Auth envia a verificação no registo (`emailVerification.sendOnSignUp` —
+  antes o e-mail só era gravado no outbox e nunca disparava). Nova página
+  `/verificar-email`: mostra "E-mail verificado" + destino por papel, ou erro
+  neutro para link inválido/expirado (`?error=`).
+- **Correcção de idempotência nas notificações (N-01/N-02):** as chaves usavam
+  `url.split("token=")[1]?.split(".")[0]` — para tokens JWT do verify-email isso
+  devolve o *header* do JWT (constante) e para N-02 o suffixo era vazio →
+  colisão P2002 no segundo pedido do mesmo utilizador. Agora usam o token
+  completo (N-01, até ao `&`) ou o token do caminho (N-02).
+
+Pendentes para fechar o M1:
+
+- RF-AUT-01 — SSO Entra: código pronto, validação só em homologação (P-20);
+  conta local de staff mantém-se como contingência/desenvolvimento.
+- Limitação conhecida: LOGIN_FAILED é reportado pelo cliente
+  (`/api/entrar/falha`); o hook server-side do Better Auth 1.7 não expõe o e-mail
+  tentado — registar a limitação para revisão em M9 (endurecimento).
+- Auditoria de PASSWORD_RESET/EMAIL_CHANGED indisponível no Better Auth 1.7 → M9.
+
 ### Guião de demonstração M1 (dados sintéticos)
 
 Pré-requisito: M0 passos 1-3 (base de dados, migrações e `npm run dev` na :3000 ou
@@ -192,7 +234,19 @@ Pré-requisito: M0 passos 1-3 (base de dados, migrações e `npm run dev` na :30
 7. **Bloqueio progressivo (RF-AUT-07):** falhar a senha 5 vezes → captcha passa a
    ser exigido; falhar 10 → conta bloqueada 30 min (mensagem N-29). Em dev,
    `npx tsx prisma/seed/desbloquear-dev.ts` desbloqueia.
-8. **E2E completo:** `npx playwright test` — 3 jornadas `@smoke` nos três motores.
+8. **E2E completo:** `npx playwright test` — 9 jornadas `@smoke` nos três motores.
+9. **Feriados (RF-ADM-07):** `/app/feriados` — criar feriado local (regra
+   domingo→segunda sugerida); tentar duplicado → recusado; eliminar auditado.
+10. **A minha conta (RF-AUT-06/08/10):** `/conta` — actualizar o nome; pedir mudança
+    de e-mail com a senha actual (confirmação ao endereço antigo; o e-mail só muda
+    após confirmação); mudar senha com "terminar as outras sessões"; ver e terminar
+    sessões activas.
+11. **Recuperação de senha (RF-AUT-05):** `/repor-senha` — pedir com e-mail
+    sintético (resposta neutra); no Mailpit (:8025) o e-mail N-02 com link de 60
+    min → redefinir a senha (política de senha verificada no servidor).
+12. **Verificação de e-mail (RF-AUT-03):** registar um candidato → no Mailpit o
+    e-mail N-01 → abrir o link → `/verificar-email` mostra "E-mail verificado" e
+    o destino por papel; um link reutilizado/adulterado mostra o erro neutro.
 
 ## Guião de demonstração (M0, dados sintéticos)
 
@@ -240,10 +294,16 @@ Pré-requisito: M0 passos 1-3 (base de dados, migrações e `npm run dev` na :30
 | RF-AUT-02/03 (entrada e registo) | `src/app/(auth)/entrar`, `src/app/(auth)/registar`, `src/components/entrar-forms.tsx`, `src/app/api/registar`, `src/app/api/entrar/*` | `tests/unit/candidate-registration.test.ts`, `tests/e2e/auth-m1.spec.ts` | ✅ |
 | RF-AUT-04 (senha forte) | `src/server/auth/password.ts`, `src/server/auth/data/common-passwords.ts` | `tests/unit/auth.test.ts` | ✅ |
 | RF-AUT-07 (limites e bloqueio) | `src/server/auth/account-lock.ts`, `src/server/auth/better-auth.ts`, `src/app/api/entrar/falha` | `tests/integration/authorization.test.ts` (bloqueio RF-AUT-07), `tests/unit/auth.test.ts` | ✅ (falha reportada pelo cliente — ver limitação em M9) |
-| RF-AUT-06 (inactividade 30 min) | `src/server/auth/session.ts` | `tests/unit/session-activity.test.ts` | ✅ (ecrã sessões pendente) |
+| RF-AUT-06 (inactividade 30 min) | `src/server/auth/session.ts` | `tests/unit/session-activity.test.ts` | ✅ |
 | RF-AUT-09/11 (papéis + matriz) | `src/server/auth/permissions.ts`, `src/server/auth/principal.ts`, `src/server/auth/assert-can.ts`, `src/app/app/utilizadores` | `tests/unit/permissions.test.ts`, `tests/integration/authorization.test.ts` | ✅ |
 | RF-AUD-01 a 04 (auditoria) | `src/server/services/audit.ts`, `src/server/services/audit-diff.ts`, `src/app/app/auditoria`, `src/app/app/auditoria/csv` | `tests/integration/authorization.test.ts` (append-only), `tests/unit/audit-diff.test.ts`, `tests/e2e/auth-m1.spec.ts` (permissão) | ✅ |
 | RF-ADM-11 (parâmetros) | `src/server/services/settings.ts`, `src/app/app/parametros` | `tests/unit/settings.test.ts`, `tests/unit/settings-service.test.ts` | ✅ |
 | RF-ADM-01 a 06, 13 (catálogos) | `src/server/services/catalog.ts`, `src/app/app/catalogos` | `tests/unit/catalog.test.ts` (RN-ADM-01/02) | ✅ |
 | RF-ADM-14 (saúde) | `src/app/app/saude` | manual (guião acima) | ✅ |
 | RF-AUT-03 (ALTCHA) | `src/server/auth/altcha.ts`, `src/components/altcha-field.tsx`, `src/lib/sha256.ts`, `src/app/api/captcha/altcha` | `tests/unit/sha256.test.ts`, `tests/e2e/auth-m1.spec.ts` (registo) | ✅ |
+| RF-AUT-03 (verificação de e-mail) | `src/app/(auth)/verificar-email`, `src/server/services/candidate-registration.ts`, `src/server/auth/better-auth.ts` (sendOnSignUp) | `tests/unit/candidate-registration.test.ts` (callbackURL), `tests/e2e/auth-m1.spec.ts` (callback) | ✅ |
+| RF-AUT-05 (recuperação de senha) | `src/app/(auth)/repor-senha`, `src/app/api/repor-senha` | `tests/unit/auth.test.ts` (política de senha), E2E (probe) | ✅ |
+| RF-AUT-06/10 ("A minha conta") | `src/app/conta`, `src/components/conta-forms.tsx` | `tests/e2e/auth-m1.spec.ts` (conta) | ✅ |
+| RF-AUT-08 (mudança de e-mail) | `src/app/api/conta/mudar-email`, `src/server/auth/better-auth.ts` | `tests/e2e/auth-m1.spec.ts`; N-29 subsumido pelo N-01 de confirmação do Better Auth | ✅ (auditoria EMAIL_CHANGED → M9) |
+| RF-ADM-07 (feriados) | `src/app/app/feriados`, `src/server/services/holidays.ts`, `src/server/domain/holidays.ts` | `tests/unit/holidays.test.ts`, `tests/unit/settings.test.ts` | ✅ |
+| RF-ADM-12 (directório CSV) | `src/app/app/utilizadores`, `src/server/services/staff-directory.ts` | `tests/unit/staff-directory.test.ts` | ✅ |
