@@ -32,6 +32,8 @@ export type AuditLogFilters = {
   actions?: AuditAction[];
   entityType?: string;
   entityId?: string;
+  /** Filtrar por endereço IP (limites RF-AUT-07). */
+  ipAddress?: string;
   /** Só acções técnicas (SYSTEM_ADMIN), só negócio (HR_MANAGER) ou todas (AUDITOR). */
   onlyTechnical?: boolean;
   onlyBusiness?: boolean;
@@ -81,6 +83,7 @@ export function createAuditLogRepository(prisma: PrismaClient) {
         action: actions && actions.length > 0 ? { in: actions } : undefined,
         entityType: filters.entityType || undefined,
         entityId: filters.entityId || undefined,
+        ipAddress: filters.ipAddress || undefined,
       };
       const pageSize = Math.min(filters.pageSize ?? 50, 200);
       const page = Math.max(filters.page ?? 1, 1);

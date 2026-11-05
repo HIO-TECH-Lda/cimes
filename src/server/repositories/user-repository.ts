@@ -30,5 +30,10 @@ export function createUserRepository(prisma: PrismaClient) {
     async touchLastSeen(userId: string, at: Date): Promise<void> {
       await prisma.user.update({ where: { id: userId }, data: { lastSeenAt: at } });
     },
+
+    /** RF-AUT-07: bloqueia a conta até instante (null = desbloqueia). */
+    async setLockedUntil(userId: string, lockedUntil: Date | null): Promise<void> {
+      await prisma.user.update({ where: { id: userId }, data: { lockedUntil } });
+    },
   };
 }
