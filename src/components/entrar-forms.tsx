@@ -22,12 +22,21 @@ const authClient = createAuthClient();
 
 type Mode = "colaborador" | "candidato";
 
+export type DemoConta = {
+  email: string;
+  senha: string;
+  papel: string;
+};
+
 export function EntrarForms({
   entraEnabled,
   localStaffEnabled,
+  demoContas,
 }: {
   entraEnabled: boolean;
   localStaffEnabled: boolean;
+  /** Contas sintéticas de demonstração (R-01); só chega preenchido com DEMO_MODE fora de produção. */
+  demoContas?: ReadonlyArray<DemoConta>;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("colaborador");
@@ -48,12 +57,11 @@ export function EntrarForms({
     return () => clearTimeout(t);
   }, [email]);
 
-  async function submeter(e: React.FormEvent) {
-    e.preventDefault();
+  async function entrarCom(em: string, se: string) {
     setErro(null);
     setAEnviar(true);
     try {
-      const { error } = await authClient.signIn.email({ email, password });
+      const { error } = await authClient.signIn.email({ email: em, password: se });
       if (error) {
         // Só as credenciais inválidas (401) alimentam o bloqueio progressivo
         // (RF-AUT-07); 429 (limite por IP) e erros de servidor não contam.
@@ -61,7 +69,7 @@ export function EntrarForms({
           void fetch("/api/entrar/falha", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email: em }),
           }).catch(() => undefined);
         }
         // Resposta neutra (RF-AUT-05): não revela se a conta existe.
@@ -76,6 +84,11 @@ export function EntrarForms({
     } finally {
       setAEnviar(false);
     }
+  }
+
+  async function submeter(e: React.FormEvent) {
+    e.preventDefault();
+    await entrarCom(email, password);
   }
 
   async function entrarMicrosoft() {
@@ -132,6 +145,29 @@ export function EntrarForms({
               <Alert variant="destructive">
                 <AlertDescription>{pt.app.semSessao}</AlertDescription>
               </Alert>
+            ) : null}
+            {demoContas && demoContas.length > 0 ? (
+              <div className="border-t pt-4">
+                <p className="text-muted-foreground mb-2 text-sm font-medium">{pt.auth.demoTitulo}</p>
+                <div className="grid gap-2">
+                  {demoContas.map((conta) => (
+                    <Button
+                      key={conta.email}
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between"
+                      disabled={aEnviar}
+                      onClick={() => void entrarCom(conta.email, conta.senha)}
+                    >
+                      <span>
+                        {pt.auth.demoEntrarComo} {conta.papel}
+                      </span>
+                      <span className="text-muted-foreground text-xs">{conta.email}</span>
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-muted-foreground mt-2 text-xs">{pt.auth.demoAviso}</p>
+              </div>
             ) : null}
           </CardContent>
         </Card>

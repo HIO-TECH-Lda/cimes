@@ -57,4 +57,17 @@ describe("RNF-05 validação de variáveis de ambiente", () => {
       loadConfig({ ...validEnv, DATABASE_URL: "postgres://db/cimes" }),
     ).toThrow(/sqlserver:\/\//);
   });
+
+  it("DEMO_MODE por omissão é falso; só \"1\"/\"true\" activam (\"false\" fica falso)", () => {
+    expect(loadConfig(validEnv).demoMode).toBe(false);
+    expect(loadConfig({ ...validEnv, DEMO_MODE: "false" }).demoMode).toBe(false);
+    expect(loadConfig({ ...validEnv, DEMO_MODE: "1" }).demoMode).toBe(true);
+    expect(loadConfig({ ...validEnv, DEMO_MODE: "TRUE" }).demoMode).toBe(true);
+  });
+
+  it("rejeita DEMO_MODE activo em produção (exporia entradas com um clique)", () => {
+    expect(() =>
+      loadConfig({ ...validEnv, NODE_ENV: "production", DEMO_MODE: "1" }),
+    ).toThrow(/DEMO_MODE/);
+  });
 });

@@ -79,6 +79,9 @@ export const pt = {
     pendenteTitulo: "Acesso pendente",
     pendenteDescricao: "A tua conta foi criada, mas ainda não tens papéis atribuídos. Contacta o RH.",
     verificacaoTitulo: "Verifica o teu e-mail",
+    demoTitulo: "Contas de demonstração",
+    demoEntrarComo: "Entrar como",
+    demoAviso: "Só disponível fora de produção com contas sintéticas (R-01).",
   },
   altcha: {
     label: "Não sou um robô",

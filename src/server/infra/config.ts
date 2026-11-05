@@ -80,6 +80,14 @@ const envSchema = z.object({
   AI_DAILY_MAX_CALLS: z.coerce.number().int().min(1).default(500),
 
   AV_SCAN: z.enum(["none", "clamav"]).default("none"),
+
+  // Contas de demonstração com um clique em /entrar (apenas fora de produção;
+  // os dados são sempre sintéticos, R-01). Aceita "1" ou "true"; qualquer outra
+  // coisa (incluindo "false") desactiva — evita activar por engano ao copiar.
+  DEMO_MODE: z
+    .string()
+    .default("")
+    .transform((v) => v === "1" || v.toLowerCase() === "true"),
 });
 
 export type AppConfig = {
@@ -110,6 +118,7 @@ export type AppConfig = {
   aiFeatures: { transcript: boolean; cv: boolean; nlq: boolean };
   aiDailyMaxCalls: number;
   avScan: "none" | "clamav";
+  demoMode: boolean;
 };
 
 /** Valida o ambiente e devolve a configuração tipada. Lança com mensagens claras. */
@@ -120,6 +129,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`Configuração inválida — a aplicação não vai arrancar (RNF-05). Problemas: ${issues}`);
   }
   const v = result.data;
+  // Modo de demonstração nunca em produção: exporia entradas com um clique.
+  if (v.DEMO_MODE && v.NODE_ENV === "production") {
+    throw new Error("Configuração inválida - DEMO_MODE não pode estar activo em produção (RNF-05).");
+  }
   if (!Object.hasOwn(v.FILE_ENCRYPTION_KEYS, v.FILE_ENCRYPTION_ACTIVE_KEY_ID)) {
     throw new Error("FILE_ENCRYPTION_ACTIVE_KEY_ID não existe em FILE_ENCRYPTION_KEYS");
   }
@@ -154,6 +167,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     aiFeatures: { transcript: v.AI_FEATURE_TRANSCRIPT, cv: v.AI_FEATURE_CV, nlq: v.AI_FEATURE_NLQ },
     aiDailyMaxCalls: v.AI_DAILY_MAX_CALLS,
     avScan: v.AV_SCAN,
+    demoMode: v.DEMO_MODE,
   };
 }
 
