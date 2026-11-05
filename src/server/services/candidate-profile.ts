@@ -148,12 +148,16 @@ export function createProfileService(deps: { prisma: DbClient; clock: Clock; log
   /** Leitura do próprio perfil, com BI/NUIT decifrados para preencher o formulário. */
   async function getOwn(principal: Principal) {
     assertCan(principal, "own.profileManage", { ownerUserId: principal.userId });
-    const perfil = (await client.candidateProfile.findUnique({ where: { userId: principal.userId } })) as ProfileRow | null;
-    if (!perfil) return { perfil: null, biNumber: null, nuit: null, passos: [] as ProfileStep[] };
+    const perfil = (await client.candidateProfile.findUnique({
+      where: { userId: principal.userId },
+      include: { skills: { select: { skillId: true } } },
+    })) as (ProfileRow & { skills: Array<{ skillId: string }> }) | null;
+    if (!perfil) return { perfil: null, biNumber: null, nuit: null, skillIds: [] as string[], passos: [] as ProfileStep[] };
     return {
       perfil,
       biNumber: perfil.biNumberEnc ? decryptPii(perfil.biNumberEnc) : null,
       nuit: perfil.nuitEnc ? decryptPii(perfil.nuitEnc) : null,
+      skillIds: perfil.skills.map((s) => s.skillId),
       passos: passosDeDados(perfil),
     };
   }
@@ -272,5 +276,32 @@ export function createProfileService(deps: { prisma: DbClient; clock: Clock; log
 
   deps.logger?.debug("servico de perfil criado");
 
-  return { getOwn, saveStepPersonal, saveStepContacts, saveStepEducation, saveStepSkills };
+  return { getOwn, saveStepPersonal, saveStepContacts, saveStepEducation, saveStepSkills, listFormCatalog };
+
+  /** Catálogos activos para os selectores do formulário do perfil (RF-CAN-01). */
+  async function listFormCatalog() {
+    const [instituicoes, cursos, competencias, locais] = await Promise.all([
+      client.institution.findMany({
+        where: { active: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      client.course.findMany({
+        where: { active: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      client.skill.findMany({
+        where: { active: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      client.location.findMany({
+        where: { active: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+    return { instituicoes, cursos, competencias, locais };
+  }
 }

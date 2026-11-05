@@ -91,7 +91,13 @@ const prisma = {
   candidateProfile: {
     async findUnique({ where }: { where: { userId: string } }) {
       const row = db.profiles.find((p) => p.userId === where.userId);
-      return row ? clonar(row) : null;
+      if (!row) return null;
+      return {
+        ...clonar(row),
+        skills: db.competencias
+          .filter((s) => s.candidateId === row.id)
+          .map((s) => ({ skillId: s.skillId })),
+      };
     },
     async findFirst({ where }: { where: { biNumberHash?: string; userId?: { not: string } } }) {
       const row = db.profiles.find(
