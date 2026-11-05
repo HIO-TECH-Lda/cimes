@@ -13,6 +13,9 @@ import { parseSqlserverUrl } from "@/server/infra/db-config";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+/** Tipo do cliente Prisma re-exportado (serviços importam daqui, R-02). */
+export type { PrismaClient };
+
 export function getPrismaClient(): PrismaClient {
   globalForPrisma.prisma ??= createPrismaClient();
   return globalForPrisma.prisma;
