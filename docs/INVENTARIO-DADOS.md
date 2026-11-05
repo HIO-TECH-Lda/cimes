@@ -7,6 +7,12 @@ Mantido pelo agente e actualizado em cada marco que introduza dados pessoais nov
 |---|---|---|---|---|---|---|
 | — | — | — | — | — | — | — |
 
+> **Nota (M0):** o esquema do Anexo A já define entidades com campos de dados pessoais
+> (AppUser, Candidate, etc.), mas em M0 nenhuma funcionalidade os recolhe ou trata —
+> a migração cria apenas as tabelas. As linhas deste inventário são preenchidas nos
+> marcos em que cada campo passa a ser efectivamente recolhido (M1: contas e papéis;
+> M2: candidaturas e documentos).
+
 ## Regras aplicáveis
 
 - R-01: nunca usar dados reais em desenvolvimento, testes, seeds ou prompts.
