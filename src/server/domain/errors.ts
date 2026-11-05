@@ -15,3 +15,11 @@ export class ForbiddenError extends Error {
     this.name = "ForbiddenError";
   }
 }
+
+/** Conflito com o estado actual (ex.: BI já noutra conta, RF-CAN-03) — 409. */
+export class ConflictError extends Error {
+  constructor(message = "Conflito com o estado actual") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
