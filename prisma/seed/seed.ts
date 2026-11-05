@@ -15,7 +15,8 @@ dotenv.config();
 import { PrismaClient } from "../../src/generated/prisma/client";
 import { PrismaMssql } from "@prisma/adapter-mssql";
 import { parseSqlserverUrl } from "../../src/server/infra/db-config";
-import { parseCsv, synonymsToJson, observedDate } from "./csv";
+import { parseCsv, synonymsToJson } from "./csv";
+import { observedDate } from "../../src/server/domain/holidays";
 import { defaultSettings } from "../../src/server/domain/settings";
 
 const dataDir = join(import.meta.dirname, "data");

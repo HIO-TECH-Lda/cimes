@@ -19,6 +19,7 @@ export default async function AppHomePage() {
     { href: "/app/utilizadores", label: pt.app.utilizadores },
     { href: "/app/parametros", label: pt.app.parametros },
     { href: "/app/catalogos", label: pt.app.catalogos },
+    { href: "/app/feriados", label: pt.feriados.titulo },
     { href: "/app/auditoria", label: pt.app.auditoria },
     { href: "/app/saude", label: pt.app.saude },
   ];

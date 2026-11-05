@@ -13,6 +13,7 @@ import { createAuditService } from "@/server/services/audit";
 import { createRoleAssignmentService } from "@/server/services/role-assignment";
 import { createSettingService } from "@/server/services/settings";
 import { createCatalogService, type BusinessCatalog } from "@/server/services/catalog";
+import { createHolidayService } from "@/server/services/holidays";
 import type { Role } from "@/server/auth/permissions";
 
 /**
@@ -173,4 +174,41 @@ export async function renomearCatalogoAction(formData: FormData): Promise<void> 
   revalidatePath("/app/catalogos");
   if (result === null) redirect("/entrar");
   else redirect(`/app/catalogos?msg=${result}`);
+}
+
+export async function criarFeriadoAction(formData: FormData): Promise<void> {
+  const result = await withPrincipal(async (authenticated) => {
+    const service = createHolidayService({ prisma: getPrismaClient(), audit: createAuditService(getPrismaClient()) });
+    try {
+      await service.create(authenticated.principal, {
+        holidayDate: String(formData.get("data") ?? ""),
+        name: String(formData.get("nome") ?? ""),
+        scope: String(formData.get("ambito") ?? "NATIONAL"),
+        locationCode: String(formData.get("localCodigo") ?? "").trim() || undefined,
+      });
+      return "criado";
+    } catch {
+      return "invalido";
+    }
+  });
+
+  revalidatePath("/app/feriados");
+  if (result === null) redirect("/entrar");
+  else redirect(`/app/feriados?msg=${result}`);
+}
+
+export async function eliminarFeriadoAction(formData: FormData): Promise<void> {
+  const result = await withPrincipal(async (authenticated) => {
+    const service = createHolidayService({ prisma: getPrismaClient(), audit: createAuditService(getPrismaClient()) });
+    try {
+      await service.remove(authenticated.principal, String(formData.get("id") ?? ""));
+      return "eliminado";
+    } catch {
+      return "invalido";
+    }
+  });
+
+  revalidatePath("/app/feriados");
+  if (result === null) redirect("/entrar");
+  else redirect(`/app/feriados?msg=${result}`);
 }

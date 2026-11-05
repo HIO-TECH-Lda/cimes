@@ -34,12 +34,3 @@ export function synonymsToJson(cell: string): string {
     .filter((s) => s.length > 0);
   return JSON.stringify(synonyms);
 }
-
-/** Domingo → segunda-feira seguinte (F.7). */
-export function observedDate(date: Date): Date {
-  const observed = new Date(date);
-  if (observed.getUTCDay() === 0) {
-    observed.setUTCDate(observed.getUTCDate() + 1);
-  }
-  return observed;
-}

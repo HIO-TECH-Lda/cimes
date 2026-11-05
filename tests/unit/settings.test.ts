@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseCsv, synonymsToJson, observedDate } from "../../prisma/seed/csv";
+import { parseCsv, synonymsToJson } from "../../prisma/seed/csv";
+import { observedDate } from "@/server/domain/holidays";
 import { defaultSettings, SETTING_SCHEMAS, validateSetting } from "@/server/domain/settings";
 
 describe("leitor CSV dos seeds (Anexo F)", () => {
