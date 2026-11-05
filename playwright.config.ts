@@ -10,7 +10,12 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
-  retries: process.env.CI ? 2 : 0,
+  // Sequencial com 1 retry: o primeiro acesso a uma rota no dev server compila
+  // a pedido e pode devolver 500 uma vez; em paralelo, três motores a criar
+  // sessões na mesma base de dev também colidem (TransactionWriteConflict).
+  workers: 1,
+  retries: process.env.CI ? 2 : 1,
+  globalSetup: "./tests/e2e/global-setup.ts",
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: "http://localhost:3100",
