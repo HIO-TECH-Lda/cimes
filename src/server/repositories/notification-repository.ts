@@ -59,5 +59,53 @@ export function createNotificationRepository(prisma: PrismaClient) {
         },
       });
     },
+
+    /** Linhas PENDING cuja hora de tentativa chegou (RF-NOT-03), ordenadas. */
+    async findDue({ now, limit }: { now: Date; limit: number }) {
+      return prisma.notification.findMany({
+        where: { status: "PENDING", nextAttemptAt: { lte: now } },
+        orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
+        take: limit,
+      });
+    },
+
+    /** Marca SENT; a condição PENDING evita duplo envio por dois workers. */
+    async markSent({ id, sentAt, providerMessageId }: { id: string; sentAt: Date; providerMessageId: string | null }) {
+      return prisma.notification.updateMany({
+        where: { id, status: "PENDING" },
+        data: { status: "SENT", sentAt, providerMessageId, lastError: null },
+      });
+    },
+
+    /** Incrementa tentativas e agenda a próxima (só se continuar PENDING). */
+    async scheduleRetry({ id, attempts, lastError, nextAttemptAt }: {
+      id: string;
+      attempts: number;
+      lastError: string;
+      nextAttemptAt: Date;
+    }) {
+      return prisma.notification.updateMany({
+        where: { id, status: "PENDING" },
+        data: { attempts, lastError, nextAttemptAt },
+      });
+    },
+
+    /** Falha definitiva (RF-NOT-03: depois das retentativas). */
+    async markFailed({ id, lastError, attempts }: { id: string; lastError: string; attempts?: number }) {
+      return prisma.notification.updateMany({
+        where: { id, status: "PENDING" },
+        data: attempts === undefined ? { status: "FAILED", lastError } : { status: "FAILED", lastError, attempts },
+      });
+    },
+
+    /** Aviso na aplicação criado junto com o e-mail (RF-NOT-04). */
+    async createInApp({ userId, title, body, link }: {
+      userId: string;
+      title: string;
+      body: string;
+      link: string | null;
+    }) {
+      return prisma.inAppNotification.create({ data: { userId, title, body, link } });
+    },
   };
 }

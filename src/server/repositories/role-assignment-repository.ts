@@ -56,5 +56,20 @@ export function createRoleAssignmentRepository(prisma: PrismaClient) {
     async findById(id: string) {
       return prisma.roleAssignment.findUnique({ where: { id } });
     },
+
+    /** E-mail do primeiro SYSTEM_ADMIN activo (destino do N-30, RF-NOT-03). */
+    async findSystemAdminEmail(at: Date) {
+      const row = await prisma.roleAssignment.findFirst({
+        where: {
+          role: "SYSTEM_ADMIN",
+          validFrom: { lte: at },
+          OR: [{ validTo: null }, { validTo: { gt: at } }],
+          user: { emailVerified: true },
+        },
+        include: { user: { select: { email: true } } },
+        orderBy: { validFrom: "asc" },
+      });
+      return row?.user.email ?? null;
+    },
   };
 }

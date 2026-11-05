@@ -114,6 +114,8 @@ export type AppConfig = {
   mailTransport: "graph" | "smtp-oauth2" | "smtp-relay" | "dev" | "memory";
   mailFrom?: string;
   mailSenderUpn?: string;
+  /** Destino do N-30 (falha técnica persistente); por omissão, o SYSTEM_ADMIN. */
+  hrNotificationsEmail?: string;
   aiProvider: "disabled" | "mock" | "azure" | "openai";
   aiFeatures: { transcript: boolean; cv: boolean; nlq: boolean };
   aiDailyMaxCalls: number;
@@ -163,6 +165,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     mailTransport: v.MAIL_TRANSPORT,
     mailFrom: v.MAIL_FROM,
     mailSenderUpn: v.MAIL_SENDER_UPN,
+    hrNotificationsEmail: v.HR_NOTIFICATIONS_EMAIL,
     aiProvider: v.AI_PROVIDER,
     aiFeatures: { transcript: v.AI_FEATURE_TRANSCRIPT, cv: v.AI_FEATURE_CV, nlq: v.AI_FEATURE_NLQ },
     aiDailyMaxCalls: v.AI_DAILY_MAX_CALLS,

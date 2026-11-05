@@ -86,3 +86,26 @@ dependência nova fora da lista permitida (R-17).
   07) podem confiar nas colunas do Anexo A; 
 px prisma validate e o runtime 1.7.17
   passam sem avisos; qualquer acrescimo do Better Auth num patch volta a este ADR.
+
+## ADR-0003 - Dependencias do Anexo L instaladas na primeira utilizacao
+
+- **Data:** 2026-11-05
+- **Estado:** aceite
+- **Contexto:** o marco M2 (base de M14 e documentos) exige, pela primeira vez,
+  pacotes fixados no Anexo L que o M0/M1 ainda nao usavam. O R-17/ADR-0001 fixa
+  as linhas: Nodemailer e React Email (e-mail, G.9) e mais tarde pdf-lib,
+  pdfjs-dist e sharp (documentos, DOC-03 a DOC-05).
+- **Decisao:** instalar agora, na primeira utilizacao, exatamente os pacotes da
+  tabela do Anexo L: `nodemailer` 10.x com `@types/nodemailer`,
+  `@react-email/components` 1.0.x e `@react-email/render` 2.x. O aviso de
+  descontinuacao do meta-pacote `@react-email/components` (absorvido pela linha
+  2.x do `@react-email/render`) nao bloqueia: as APIs `render` e os componentes
+  confirmam-se contra a documentacao da versao instalada (R-20). pdf-lib,
+  pdfjs-dist e sharp instalam-se no incremento de documentos, pelo mesmo padrao,
+  e ficam registados neste ADR.
+- **Alternativas:** construir HTML de e-mail a mao (rejeitado - RF-NOT-06 manda
+  React Email com versao em texto simples); sendmail directo sem Nodemailer
+  (rejeitado - Anexo L fixa o transporte).
+- **Consequencias:** o worker envia por SMTP (Mailpit :1025 em desenvolvimento)
+  com modelos React Email; novos pacotes entram em `package.json` com versao
+  fixada e dependabot/renovate trata patches; saltos de major exigem novo ADR.
