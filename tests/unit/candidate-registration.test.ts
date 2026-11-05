@@ -71,6 +71,7 @@ describe("registo de candidato (RF-AUT-03)", () => {
     const result = await service.register({ ...base, altchaPayload: validAltcha(), talentPoolConsent: true });
     expect(result.userId).toBe("user-novo");
     expect(signUpCalls[0]?.userType).toBe("EXTERNAL");
+    expect(signUpCalls[0]?.callbackURL).toBe("/verificar-email");
     expect(consents.some((c) => c.type === "PRIVACY_NOTICE" && c.granted)).toBe(true);
     expect(consents.some((c) => c.type === "TALENT_POOL" && c.granted)).toBe(true);
   });

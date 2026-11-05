@@ -71,4 +71,15 @@ test.describe("@smoke M1 - identidade e acesso", () => {
     await expect(page.getByText("Sessões activas", { exact: true })).toBeVisible();
     await expect(page.locator("#conta-nome")).toHaveValue(/admin/i);
   });
+
+  test("callback da verificação de e-mail mostra sucesso e erro (RF-AUT-03)", async ({ page }) => {
+    // Estado de sucesso (sem ?error=): página confirma a verificação.
+    await page.goto("/verificar-email");
+    await expect(page.getByText("E-mail verificado")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continuar" })).toBeVisible();
+
+    // Estado de erro (link inválido/expirado, devolvido pelo Better Auth).
+    await page.goto("/verificar-email?error=INVALID_TOKEN");
+    await expect(page.getByText("Link de verificação inválido ou expirado.")).toBeVisible();
+  });
 });

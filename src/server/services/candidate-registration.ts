@@ -37,6 +37,8 @@ type SignUpFn = (body: {
   email: string;
   password: string;
   userType: string;
+  /** Para onde o link de verificação (N-01) devolve o utilizador. */
+  callbackURL: string;
 }) => Promise<{ user?: { id: string } } | null>;
 
 /** Registo real via Better Auth (e-mail + senha, RF-AUT-03). */
@@ -45,6 +47,7 @@ async function defaultSignUpEmail(body: {
   email: string;
   password: string;
   userType: string;
+  callbackURL: string;
 }): Promise<{ user?: { id: string } } | null> {
   const auth = getAuth();
   return auth.api.signUpEmail({ body });
@@ -94,6 +97,7 @@ export function createCandidateRegistrationService(
         email: input.email,
         password: input.password,
         userType: "EXTERNAL", // RF-AUT-03: candidato é utilizador externo
+        callbackURL: "/verificar-email",
       });
       const userId = created?.user?.id;
       if (!userId) {

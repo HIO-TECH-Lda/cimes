@@ -1,4 +1,4 @@
-﻿import { betterAuth } from "better-auth";
+import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
 
@@ -78,7 +78,7 @@ export function createAuth() {
             recipientUserId: user.id,
             recipientEmail: user.email,
             payload: { url },
-            idempotencyKey: `N-01:${user.id}:${url.split("token=")[1]?.split(".")[0] ?? ""}`,
+            idempotencyKey: `N-01:${user.id}:${url.split("token=")[1]?.split("&")[0] ?? ""}`,
           });
         },
       },
@@ -95,12 +95,15 @@ export function createAuth() {
           recipientEmail: user.email,
           payload: { url },
           // Um só e-mail de recuperação por pedido de reposição (token único).
-          idempotencyKey: `N-02:${user.id}:${url.split("token=")[1]?.split(".")[0] ?? ""}`,
+          idempotencyKey: `N-02:${user.id}:${url.split("/reset-password/")[1]?.split("?")[0] ?? ""}`,
         });
       },
     },
 
     emailVerification: {
+      // RF-AUT-03: candidato recebe o e-mail de verificação logo no registo;
+      // o link devolve para /verificar-email (callbackURL do signUpEmail).
+      sendOnSignUp: true,
       sendVerificationEmail: async ({ user, url }) => {
         await notifications.create({
           templateCode: "N-01",
@@ -108,7 +111,7 @@ export function createAuth() {
           recipientEmail: user.email,
           payload: { url },
           // Token de verificação é único; a chave evita envios duplicados do mesmo link.
-          idempotencyKey: `N-01:${user.id}:${url.split("token=")[1]?.split(".")[0] ?? ""}`,
+          idempotencyKey: `N-01:${user.id}:${url.split("token=")[1]?.split("&")[0] ?? ""}`,
         });
       },
       autoSignInAfterVerification: true,
