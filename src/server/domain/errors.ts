@@ -23,3 +23,11 @@ export class ConflictError extends Error {
     this.name = "ConflictError";
   }
 }
+
+/** Conteúdo de ficheiro recusado pela validação do servidor (RF-DOC-05) — 400. */
+export class DocumentValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DocumentValidationError";
+  }
+}

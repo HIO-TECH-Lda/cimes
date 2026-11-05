@@ -52,6 +52,8 @@ export const PERMISSION_MATRIX: PermissionEntry[] = [
   { action: "opening.view", grants: ["DEPARTMENT_HEAD:DEPARTMENT", "HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
   { action: "opening.exportCsv", grants: ["HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
   { action: "own.profileManage", grants: ["CANDIDATE:OWN", "INTERN:OWN"] },
+  // "Perfil, documentos e candidaturas próprios - P" (C.3): documentos próprios.
+  { action: "own.documentManage", grants: ["CANDIDATE:OWN", "INTERN:OWN"] },
   {
     action: "application.view",
     grants: [
