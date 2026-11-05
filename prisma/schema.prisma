@@ -1,0 +1,1212 @@
+// CIMES — esquema inicial (Prisma ORM 7, Microsoft SQL Server)
+// Ponto de partida: ver G.4. Enumerações são VARCHAR (valores em comentário e em
+// src/server/domain/enums.ts). JSON é NVARCHAR(MAX) validado por Zod.
+// Índices únicos filtrados, CHECK e permissões: Anexo L.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+// ─────────────────────────── Identidade ───────────────────────────
+// Os modelos User, Session, Account, Verification e TwoFactor DEVEM ser
+// gerados pelo CLI do Better Auth da versão fixada e reconciliados com estes.
+
+model User {
+  id               String    @id @default(cuid()) @db.VarChar(30)
+  name             String    @db.NVarChar(120)
+  email            String    @unique @db.VarChar(254)
+  emailVerified    Boolean   @default(false)
+  image            String?   @db.VarChar(500)
+  twoFactorEnabled Boolean   @default(false)
+  userType         String    @db.VarChar(10) // STAFF | EXTERNAL
+  status           String    @default("ACTIVE") @db.VarChar(10) // ACTIVE | LOCKED | DISABLED | DELETED
+  lockedUntil      DateTime?
+  lastSeenAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sessions             Session[]
+  accounts             Account[]
+  twoFactors           TwoFactor[]
+  roleAssignments      RoleAssignment[]
+  staffProfiles        StaffProfile[] // no máximo 1 (índice único filtrado)
+  candidateProfile     CandidateProfile?
+  internshipsAsIntern  Internship[]        @relation("InternshipIntern")
+  internshipsAsTutor   Internship[]        @relation("InternshipTutor")
+  internshipsAsCoTutor Internship[]        @relation("InternshipCoTutor")
+  consents             ConsentRecord[]
+  inAppNotifications   InAppNotification[]
+  signatureEvents      SignatureEvent[]
+
+  @@map("AppUser")
+}
+
+model Session {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?  @db.NVarChar(500)
+  userId    String   @db.VarChar(30)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid()) @db.VarChar(30)
+  accountId             String    @db.VarChar(255)
+  providerId            String    @db.VarChar(50)
+  userId                String    @db.VarChar(30)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  accessToken           String?   @db.NVarChar(Max)
+  refreshToken          String?   @db.NVarChar(Max)
+  idToken               String?   @db.NVarChar(Max)
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?   @db.NVarChar(1000)
+  password              String?   @db.VarChar(255)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([providerId, accountId])
+}
+
+model Verification {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  identifier String   @db.VarChar(255)
+  value      String   @db.NVarChar(Max)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model TwoFactor {
+  id          String @id @default(cuid()) @db.VarChar(30)
+  secret      String @db.VarChar(255)
+  backupCodes String @db.NVarChar(Max)
+  userId      String @db.VarChar(30)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId])
+}
+
+model RoleAssignment {
+  id           String      @id @default(cuid()) @db.VarChar(30)
+  userId       String      @db.VarChar(30)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role         String      @db.VarChar(20) // CANDIDATE | INTERN | TUTOR | DEPARTMENT_HEAD | HR_OFFICER | HR_MANAGER | EXECUTIVE | SYSTEM_ADMIN | AUDITOR
+  departmentId String?     @db.VarChar(30)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  validFrom    DateTime    @default(now())
+  validTo      DateTime?
+  reason       String?     @db.NVarChar(300)
+  grantedById  String      @db.VarChar(30)
+  createdAt    DateTime    @default(now())
+
+  @@index([userId, role])
+  @@index([departmentId, role])
+}
+
+model StaffProfile {
+  id             String     @id @default(cuid()) @db.VarChar(30)
+  employeeNumber String     @unique @db.VarChar(30)
+  fullName       String     @db.NVarChar(120)
+  email          String     @unique @db.VarChar(254)
+  departmentId   String     @db.VarChar(30)
+  department     Department @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  jobTitle       String?    @db.NVarChar(120)
+  active         Boolean    @default(true)
+  userId         String?    @db.VarChar(30) // único quando não nulo (Anexo L)
+  user           User?      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([departmentId])
+}
+
+// ─────────────────────────── Catálogos ───────────────────────────
+
+model Location {
+  id       String  @id @default(cuid()) @db.VarChar(30)
+  code     String  @unique @db.VarChar(20)
+  name     String  @db.NVarChar(80)
+  province String  @db.VarChar(20)
+  active   Boolean @default(true)
+
+  departments Department[]
+  openings    Opening[]
+  internships Internship[]
+  offers      Offer[]
+  holidays    Holiday[]
+}
+
+model Department {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  code       String   @unique @db.VarChar(20)
+  name       String   @db.NVarChar(120)
+  locationId String   @db.VarChar(30)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  roleAssignments RoleAssignment[]
+  staffProfiles   StaffProfile[]
+  openings        Opening[]
+  internships     Internship[]
+  offers          Offer[]
+}
+
+model Institution {
+  id       String  @id @default(cuid()) @db.VarChar(30)
+  code     String  @unique @db.VarChar(30)
+  name     String  @unique @db.NVarChar(200)
+  acronym  String? @db.NVarChar(30)
+  kind     String  @db.VarChar(10) // PUBLIC | PRIVATE
+  province String? @db.VarChar(20)
+  active   Boolean @default(true)
+
+  candidateProfiles CandidateProfile[]
+}
+
+model FieldOfStudy {
+  id     String  @id @default(cuid()) @db.VarChar(30)
+  code   String  @unique @db.VarChar(40)
+  name   String  @db.NVarChar(150)
+  active Boolean @default(true)
+
+  courses       Course[]
+  openingFields OpeningFieldOfStudy[]
+}
+
+model Course {
+  id             String       @id @default(cuid()) @db.VarChar(30)
+  code           String       @unique @db.VarChar(40)
+  name           String       @db.NVarChar(150)
+  level          String       @db.VarChar(15) // LICENCIATURA | MESTRADO | OUTRO
+  fieldOfStudyId String       @db.VarChar(30)
+  fieldOfStudy   FieldOfStudy @relation(fields: [fieldOfStudyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  active         Boolean      @default(true)
+
+  candidateProfiles CandidateProfile[]
+  openingCourses    OpeningCourse[]
+
+  @@unique([name, level])
+}
+
+model KeySubject {
+  id           String  @id @default(cuid()) @db.VarChar(30)
+  code         String  @unique @db.VarChar(40)
+  name         String  @db.NVarChar(120)
+  synonymsJson String  @db.NVarChar(Max) // ["programacao", ...] já normalizados
+  active       Boolean @default(true)
+
+  openingKeySubjects OpeningKeySubject[]
+  applicationGrades  ApplicationKeySubjectGrade[]
+  transcriptSubjects TranscriptSubject[]
+}
+
+model Skill {
+  id           String  @id @default(cuid()) @db.VarChar(30)
+  code         String  @unique @db.VarChar(40)
+  name         String  @db.NVarChar(120)
+  category     String? @db.NVarChar(60)
+  synonymsJson String  @db.NVarChar(Max)
+  active       Boolean @default(true)
+
+  openingSkills   OpeningSkill[]
+  candidateSkills CandidateSkill[]
+}
+
+model RecruitmentCycle {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.NVarChar(120)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  active    Boolean  @default(true)
+
+  openings Opening[]
+}
+
+model ChecklistTemplateItem {
+  id        String  @id @default(cuid()) @db.VarChar(30)
+  code      String  @unique @db.VarChar(30)
+  label     String  @db.NVarChar(200)
+  ownerRole String  @db.VarChar(20)
+  sortOrder Int
+  active    Boolean @default(true)
+}
+
+model Holiday {
+  id           String    @id @default(cuid()) @db.VarChar(30)
+  holidayDate  DateTime  @db.Date
+  observedDate DateTime  @db.Date // domingo → segunda-feira seguinte
+  name         String    @db.NVarChar(120)
+  scope        String    @db.VarChar(10) // NATIONAL | LOCAL
+  locationId   String?   @db.VarChar(30)
+  location     Location? @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt    DateTime  @default(now())
+
+  @@index([observedDate])
+}
+
+model Setting {
+  code        String   @id @db.VarChar(100)
+  valueJson   String   @db.NVarChar(Max)
+  updatedById String?  @db.VarChar(30)
+  updatedAt   DateTime @updatedAt
+}
+
+model SequenceCounter {
+  code  String @id @db.VarChar(30) // ex.: VAG-2027, EST-2027, CAND-2027
+  value Int
+}
+
+// ─────────────────────────── Candidatos ───────────────────────────
+
+model CandidateProfile {
+  id                     String       @id @default(cuid()) @db.VarChar(30)
+  userId                 String       @unique @db.VarChar(30)
+  user                   User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fullName               String       @db.NVarChar(120)
+  birthDate              DateTime?    @db.Date
+  sex                    String?      @db.VarChar(12) // FEMALE | MALE | UNDISCLOSED
+  biNumberEnc            String?      @db.VarChar(500)
+  biNumberHash           String?      @db.VarChar(64) // único quando não nulo (Anexo L)
+  biExpiryDate           DateTime?    @db.Date
+  nuitEnc                String?      @db.VarChar(500)
+  phoneE164              String?      @db.VarChar(16)
+  phoneAltE164           String?      @db.VarChar(16)
+  province               String?      @db.VarChar(20)
+  city                   String?      @db.NVarChar(80)
+  neighbourhood          String?      @db.NVarChar(80)
+  institutionId          String?      @db.VarChar(30)
+  institution            Institution? @relation(fields: [institutionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  institutionOther       String?      @db.NVarChar(150)
+  courseId               String?      @db.VarChar(30)
+  course                 Course?      @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  courseOther            String?      @db.NVarChar(150)
+  academicStatus         String?      @db.VarChar(10) // FINALIST | GRADUATE
+  graduationDate         DateTime?    @db.Date
+  declaredAverage        Decimal?     @db.Decimal(4, 2)
+  languagesJson          String?      @db.NVarChar(Max)
+  availableLocationsJson String?      @db.NVarChar(Max)
+  talentPoolConsent      Boolean      @default(false)
+  legalHold              Boolean      @default(false)
+  legalHoldReason        String?      @db.NVarChar(300)
+  profileCompletedAt     DateTime?
+  lastActivityAt         DateTime?
+  anonymizedAt           DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  skills       CandidateSkill[]
+  documents    CandidateDocument[]
+  applications Application[]
+  transcripts  Transcript[]
+
+  @@index([institutionId])
+  @@index([courseId])
+  @@index([talentPoolConsent])
+}
+
+model CandidateSkill {
+  candidateId String           @db.VarChar(30)
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  skillId     String           @db.VarChar(30)
+  skill       Skill            @relation(fields: [skillId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source      String           @db.VarChar(5) // SELF | AI | HR
+  confirmed   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@id([candidateId, skillId])
+}
+
+model StoredFile {
+  id           String    @id @default(cuid()) @db.VarChar(30)
+  storageKey   String    @unique @db.VarChar(200)
+  purpose      String    @db.VarChar(25) // CANDIDATE_DOCUMENT | SIGNATURE_IMAGE | ISSUED_DOCUMENT | DIARY_ATTACHMENT | INTERNSHIP_DOCUMENT | IMPORT | EXPORT | TEMP
+  originalName String    @db.NVarChar(255)
+  mimeType     String    @db.VarChar(100)
+  sizeBytes    Int
+  sha256       String    @db.VarChar(64)
+  keyId        String    @db.VarChar(40)
+  pageCount    Int?
+  scanStatus   String    @default("NOT_SCANNED") @db.VarChar(12) // NOT_SCANNED | CLEAN | INFECTED
+  uploadedById String?   @db.VarChar(30)
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  candidateDocument  CandidateDocument?
+  issuedDocument     IssuedDocument?
+  signatureImageOf   SignatureEvent?
+  importBatch        ImportBatch?
+  diaryAttachment    DiaryAttachment?
+  internshipDocument InternshipDocument?
+
+  @@index([sha256])
+  @@index([purpose, expiresAt])
+}
+
+model CandidateDocument {
+  id              String           @id @default(cuid()) @db.VarChar(30)
+  candidateId     String           @db.VarChar(30)
+  candidate       CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  type            String           @db.VarChar(16) // BI | CV | TRANSCRIPT | CERTIFICATE | ENROLMENT_PROOF | OTHER
+  fileId          String           @unique @db.VarChar(30)
+  file            StoredFile       @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status          String           @default("UPLOADED") @db.VarChar(10) // UPLOADED | VALIDATED | REJECTED | REPLACED
+  rejectionReason String?          @db.NVarChar(500)
+  validatedById   String?          @db.VarChar(30)
+  validatedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  transcript Transcript?
+
+  @@index([candidateId, type, status])
+}
+
+model Transcript {
+  id                     String            @id @default(cuid()) @db.VarChar(30)
+  candidateId            String            @db.VarChar(30)
+  candidate              CandidateProfile  @relation(fields: [candidateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documentId             String            @unique @db.VarChar(30)
+  document               CandidateDocument @relation(fields: [documentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source                 String            @db.VarChar(6) // AI | MANUAL
+  status                 String            @db.VarChar(25) // PENDING_EXTRACTION | EXTRACTED | EXTRACTION_FAILED | CONFIRMED_BY_CANDIDATE | VALIDATED_BY_HR
+  institutionName        String?           @db.NVarChar(200)
+  courseName             String?           @db.NVarChar(200)
+  studentName            String?           @db.NVarChar(200)
+  detectedScale          String?           @db.VarChar(12) // 0-20 | OUTRA | DESCONHECIDA
+  computedAverage        Decimal?          @db.Decimal(4, 2)
+  averageMethod          String?           @db.VarChar(7) // CREDITS | SIMPLE
+  declaredAverageOnDoc   Decimal?          @db.Decimal(4, 2)
+  flagsJson              String?           @db.NVarChar(Max)
+  aiRunId                String?           @db.VarChar(30)
+  aiRun                  AiRun?            @relation(fields: [aiRunId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  confirmedByCandidateAt DateTime?
+  validatedById          String?           @db.VarChar(30)
+  validatedAt            DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  subjects TranscriptSubject[]
+
+  @@index([candidateId])
+}
+
+model TranscriptSubject {
+  id             String      @id @default(cuid()) @db.VarChar(30)
+  transcriptId   String      @db.VarChar(30)
+  transcript     Transcript  @relation(fields: [transcriptId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sortOrder      Int
+  name           String      @db.NVarChar(200)
+  normalizedName String      @db.NVarChar(200)
+  curricularYear Int?
+  semester       Int?
+  credits        Decimal?    @db.Decimal(5, 1)
+  grade          Decimal?    @db.Decimal(4, 2)
+  result         String      @db.VarChar(12) // APPROVED | FAILED | EQUIVALENCE | EXEMPT | UNKNOWN
+  keySubjectId   String?     @db.VarChar(30)
+  keySubject     KeySubject? @relation(fields: [keySubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  confidence     Decimal?    @db.Decimal(3, 2)
+  aiOriginalJson String?     @db.NVarChar(Max)
+  correctedById  String?     @db.VarChar(30)
+  correctedAt    DateTime?
+
+  @@index([transcriptId])
+}
+
+// ─────────────────────────── Vagas e candidaturas ───────────────────────────
+
+model Opening {
+  id                       String            @id @default(cuid()) @db.VarChar(30)
+  code                     String            @unique @db.VarChar(20)
+  title                    String            @db.NVarChar(150)
+  departmentId             String            @db.VarChar(30)
+  department               Department        @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  locationId               String            @db.VarChar(30)
+  location                 Location          @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cycleId                  String?           @db.VarChar(30)
+  cycle                    RecruitmentCycle? @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  positions                Int
+  description              String            @db.NVarChar(4000)
+  requirements             String            @db.NVarChar(4000)
+  acceptsFinalists         Boolean
+  acceptsGraduates         Boolean
+  maxMonthsSinceGraduation Int               @default(24)
+  durationMonths           Int
+  expectedStartDate        DateTime          @db.Date
+  stipendAmount            Decimal?          @db.Decimal(12, 2)
+  stipendVisible           Boolean           @default(false)
+  scoringWeightsJson       String?           @db.NVarChar(Max)
+  proposedTutorUserId      String?           @db.VarChar(30)
+  status                   String            @default("DRAFT") @db.VarChar(12) // DRAFT | SUBMITTED | APPROVED | PUBLISHED | CLOSED | COMPLETED | CANCELLED
+  applicationOpenAt        DateTime?
+  applicationCloseAt       DateTime?
+  reviewComment            String?           @db.NVarChar(2000)
+  cancelReason             String?           @db.NVarChar(500)
+  createdById              String            @db.VarChar(30)
+  submittedAt              DateTime?
+  approvedById             String?           @db.VarChar(30)
+  approvedAt               DateTime?
+  publishedAt              DateTime?
+  closedAt                 DateTime?
+  completedAt              DateTime?
+  cancelledAt              DateTime?
+  version                  Int               @default(1)
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  courses      OpeningCourse[]
+  fields       OpeningFieldOfStudy[]
+  keySubjects  OpeningKeySubject[]
+  skills       OpeningSkill[]
+  applications Application[]
+
+  @@index([status, applicationCloseAt])
+  @@index([departmentId, status])
+}
+
+model OpeningCourse {
+  openingId String  @db.VarChar(30)
+  opening   Opening @relation(fields: [openingId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  courseId  String  @db.VarChar(30)
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([openingId, courseId])
+}
+
+model OpeningFieldOfStudy {
+  openingId      String       @db.VarChar(30)
+  opening        Opening      @relation(fields: [openingId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  fieldOfStudyId String       @db.VarChar(30)
+  fieldOfStudy   FieldOfStudy @relation(fields: [fieldOfStudyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([openingId, fieldOfStudyId])
+}
+
+model OpeningKeySubject {
+  openingId    String     @db.VarChar(30)
+  opening      Opening    @relation(fields: [openingId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  keySubjectId String     @db.VarChar(30)
+  keySubject   KeySubject @relation(fields: [keySubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  weight       Int // 1 a 5
+
+  @@id([openingId, keySubjectId])
+}
+
+model OpeningSkill {
+  openingId String  @db.VarChar(30)
+  opening   Opening @relation(fields: [openingId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  skillId   String  @db.VarChar(30)
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  required  Boolean @default(false)
+  weight    Int // 1 a 5
+
+  @@id([openingId, skillId])
+}
+
+model Application {
+  id                     String           @id @default(cuid()) @db.VarChar(30)
+  code                   String           @unique @db.VarChar(20)
+  candidateId            String           @db.VarChar(30)
+  candidate              CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  openingId              String           @db.VarChar(30)
+  opening                Opening          @relation(fields: [openingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status                 String           @default("DRAFT") @db.VarChar(15) // ver D.2
+  submittedAt            DateTime?
+  profileSnapshotJson    String?          @db.NVarChar(Max)
+  averageUsed            Decimal?         @db.Decimal(4, 2)
+  averageSource          String?          @db.VarChar(12) // DECLARED | CONFIRMED | HR_VALIDATED
+  academicValidatedAt    DateTime?
+  academicValidatedById  String?          @db.VarChar(30)
+  eligibility            String?          @db.VarChar(10) // ELIGIBLE | TO_CONFIRM
+  eligibilityReasonsJson String?          @db.NVarChar(Max)
+  flagsJson              String?          @db.NVarChar(Max)
+  score                  Decimal?         @db.Decimal(5, 1)
+  scoreBreakdownJson     String?          @db.NVarChar(Max)
+  scoreComputedAt        DateTime?
+  decisionReason         String?          @db.VarChar(25)
+  decisionNotes          String?          @db.NVarChar(2000)
+  decidedById            String?          @db.VarChar(30)
+  decidedAt              DateTime?
+  candidateNotifiedAt    DateTime?
+  withdrawnAt            DateTime?
+  anonymizedAt           DateTime?
+  version                Int              @default(1)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  statusHistory    ApplicationStatusHistory[]
+  keySubjectGrades ApplicationKeySubjectGrade[]
+  recommendations  ApplicationRecommendation[]
+  interviews       Interview[]
+  offer            Offer?
+  internships      Internship[] // no máximo 1 (índice único filtrado)
+
+  @@unique([candidateId, openingId])
+  @@index([openingId, status])
+  @@index([openingId, score])
+}
+
+model ApplicationStatusHistory {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  applicationId String      @db.VarChar(30)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  fromStatus    String?     @db.VarChar(15)
+  toStatus      String      @db.VarChar(15)
+  changedById   String?     @db.VarChar(30)
+  changedAt     DateTime    @default(now())
+  comment       String?     @db.NVarChar(2000)
+
+  @@index([applicationId, changedAt])
+}
+
+model ApplicationKeySubjectGrade {
+  applicationId       String      @db.VarChar(30)
+  application         Application @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  keySubjectId        String      @db.VarChar(30)
+  keySubject          KeySubject  @relation(fields: [keySubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  grade               Decimal?    @db.Decimal(4, 2)
+  notTaken            Boolean     @default(false)
+  source              String      @db.VarChar(10) // CANDIDATE | AI | HR
+  matchedSubjectNames String?     @db.NVarChar(1000)
+  updatedById         String?     @db.VarChar(30)
+  updatedAt           DateTime    @updatedAt
+
+  @@id([applicationId, keySubjectId])
+}
+
+model ApplicationRecommendation {
+  id             String      @id @default(cuid()) @db.VarChar(30)
+  applicationId  String      @db.VarChar(30)
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  userId         String      @db.VarChar(30)
+  recommendation String      @db.VarChar(16) // RECOMMENDED | NOT_RECOMMENDED
+  comment        String?     @db.NVarChar(1000)
+  createdAt      DateTime    @default(now())
+
+  @@unique([applicationId, userId])
+}
+
+model Interview {
+  id              String      @id @default(cuid()) @db.VarChar(30)
+  applicationId   String      @db.VarChar(30)
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  scheduledAt     DateTime
+  durationMinutes Int         @default(30)
+  mode            String      @db.VarChar(10) // IN_PERSON | ONLINE
+  locationText    String?     @db.NVarChar(200)
+  onlineUrl       String?     @db.VarChar(500)
+  status          String      @default("SCHEDULED") @db.VarChar(10) // SCHEDULED | DONE | NO_SHOW | CANCELLED
+  recommendation  String?     @db.VarChar(16) // RECOMMENDED | RESERVE | NOT_RECOMMENDED
+  notes           String?     @db.NVarChar(4000)
+  icsUid          String      @unique @db.VarChar(100)
+  icsSequence     Int         @default(0)
+  createdById     String      @db.VarChar(30)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  participants InterviewParticipant[]
+
+  @@index([scheduledAt])
+}
+
+model InterviewParticipant {
+  interviewId String    @db.VarChar(30)
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  userId      String    @db.VarChar(30)
+
+  @@id([interviewId, userId])
+  @@index([userId])
+}
+
+model Offer {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  applicationId String      @unique @db.VarChar(30)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  departmentId  String      @db.VarChar(30)
+  department    Department  @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  locationId    String      @db.VarChar(30)
+  location      Location    @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tutorUserId   String      @db.VarChar(30)
+  startDate     DateTime    @db.Date
+  endDate       DateTime    @db.Date
+  stipendAmount Decimal?    @db.Decimal(12, 2)
+  notes         String?     @db.NVarChar(2000)
+  status        String      @default("DRAFT") @db.VarChar(10) // DRAFT | SENT | ACCEPTED | DECLINED | EXPIRED | WITHDRAWN
+  sentAt        DateTime?
+  expiresAt     DateTime?
+  respondedAt   DateTime?
+  declineReason String?     @db.NVarChar(500)
+  createdById   String      @db.VarChar(30)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status, expiresAt])
+}
+
+// ─────────────────────────── Estágios ───────────────────────────
+
+model Internship {
+  id                           String       @id @default(cuid()) @db.VarChar(30)
+  code                         String       @unique @db.VarChar(20)
+  applicationId                String?      @db.VarChar(30) // único quando não nulo (Anexo L)
+  application                  Application? @relation(fields: [applicationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  internUserId                 String       @db.VarChar(30)
+  intern                       User         @relation("InternshipIntern", fields: [internUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tutorUserId                  String       @db.VarChar(30)
+  tutor                        User         @relation("InternshipTutor", fields: [tutorUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  coTutorUserId                String?      @db.VarChar(30)
+  coTutor                      User?        @relation("InternshipCoTutor", fields: [coTutorUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  departmentId                 String       @db.VarChar(30)
+  department                   Department   @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  locationId                   String       @db.VarChar(30)
+  location                     Location     @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  startDate                    DateTime     @db.Date
+  plannedEndDate               DateTime     @db.Date
+  actualEndDate                DateTime?    @db.Date
+  status                       String       @default("PLANNED") @db.VarChar(20) // ver D.2
+  stipendAmount                Decimal?     @db.Decimal(12, 2)
+  workSchedule                 String?      @db.NVarChar(200)
+  outcome                      String       @default("PENDING") @db.VarChar(12) // PENDING | ABSORBED | NOT_ABSORBED
+  outcomeDecidedById           String?      @db.VarChar(30)
+  outcomeDecidedAt             DateTime?
+  outcomeNotes                 String?      @db.NVarChar(2000)
+  headAbsorptionRecommendation String?      @db.VarChar(5) // YES | NO | MAYBE
+  terminationReason            String?      @db.VarChar(20)
+  terminationNotes             String?      @db.NVarChar(2000)
+  legalHold                    Boolean      @default(false)
+  source                       String       @default("SYSTEM") @db.VarChar(6) // SYSTEM | IMPORT
+  version                      Int          @default(1)
+  createdAt                    DateTime     @default(now())
+  updatedAt                    DateTime     @updatedAt
+
+  extensions     InternshipExtension[]
+  checklistItems InternshipChecklistItem[]
+  plan           InternshipPlan?
+  diaryEntries   DiaryEntry[]
+  checkpoints    InternshipCheckpoint[]
+  evaluations    Evaluation[]
+  contracts      Contract[]
+  documents      InternshipDocument[]
+
+  @@index([tutorUserId, status])
+  @@index([coTutorUserId])
+  @@index([internUserId])
+  @@index([departmentId, status])
+  @@index([status, plannedEndDate])
+}
+
+model InternshipExtension {
+  id              String     @id @default(cuid()) @db.VarChar(30)
+  internshipId    String     @db.VarChar(30)
+  internship      Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  previousEndDate DateTime   @db.Date
+  newEndDate      DateTime   @db.Date
+  reason          String     @db.NVarChar(500)
+  approvedById    String     @db.VarChar(30)
+  createdAt       DateTime   @default(now())
+}
+
+model InternshipChecklistItem {
+  id           String     @id @default(cuid()) @db.VarChar(30)
+  internshipId String     @db.VarChar(30)
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  code         String     @db.VarChar(30)
+  label        String     @db.NVarChar(200)
+  ownerRole    String     @db.VarChar(20)
+  done         Boolean    @default(false)
+  doneAt       DateTime?
+  doneById     String?    @db.VarChar(30)
+  notes        String?    @db.NVarChar(500)
+
+  @@unique([internshipId, code])
+}
+
+model InternshipPlan {
+  id             String     @id @default(cuid()) @db.VarChar(30)
+  internshipId   String     @unique @db.VarChar(30)
+  internship     Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  objectives     String     @db.NVarChar(Max)
+  activities     String     @db.NVarChar(Max)
+  competencies   String?    @db.NVarChar(Max)
+  status         String     @default("DRAFT") @db.VarChar(12) // DRAFT | SUBMITTED | ACKNOWLEDGED
+  submittedAt    DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model DiaryEntry {
+  id             String     @id @default(cuid()) @db.VarChar(30)
+  internshipId   String     @db.VarChar(30)
+  internship     Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  referenceMonth String     @db.VarChar(7) // AAAA-MM
+  dueDate        DateTime   @db.Date
+  activities     String?    @db.NVarChar(4000)
+  learnings      String?    @db.NVarChar(4000)
+  difficulties   String?    @db.NVarChar(4000)
+  supportNeeded  String?    @db.NVarChar(4000)
+  status         String     @default("DRAFT") @db.VarChar(10) // DRAFT | SUBMITTED | VALIDATED | RETURNED
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewedById   String?    @db.VarChar(30)
+  tutorComment   String?    @db.NVarChar(2000)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  attachments DiaryAttachment[]
+
+  @@unique([internshipId, referenceMonth])
+  @@index([status, dueDate])
+}
+
+model DiaryAttachment {
+  id           String     @id @default(cuid()) @db.VarChar(30)
+  diaryEntryId String     @db.VarChar(30)
+  diaryEntry   DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  fileId       String     @unique @db.VarChar(30)
+  file         StoredFile @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model InternshipCheckpoint {
+  id             String     @id @default(cuid()) @db.VarChar(30)
+  internshipId   String     @db.VarChar(30)
+  internship     Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence       Int
+  dueDate        DateTime   @db.Date
+  progress       String?    @db.NVarChar(4000)
+  strengths      String?    @db.NVarChar(4000)
+  improvements   String?    @db.NVarChar(4000)
+  risks          String?    @db.NVarChar(4000)
+  recommendation String?    @db.NVarChar(2000)
+  status         String     @default("PENDING") @db.VarChar(12) // PENDING | SUBMITTED | ACKNOWLEDGED
+  submittedAt    DateTime?
+  submittedById  String?    @db.VarChar(30)
+  acknowledgedAt DateTime?
+  internComment  String?    @db.NVarChar(2000)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([internshipId, sequence])
+  @@index([status, dueDate])
+}
+
+model InternshipDocument {
+  id           String     @id @default(cuid()) @db.VarChar(30)
+  internshipId String     @db.VarChar(30)
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  type         String     @db.VarChar(16) // CONTRACT_SCAN | ADDENDUM_SCAN | OTHER
+  fileId       String     @unique @db.VarChar(30)
+  file         StoredFile @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  uploadedById String     @db.VarChar(30)
+  createdAt    DateTime   @default(now())
+}
+
+// ─────────────────────────── Avaliação (Anexo 4) ───────────────────────────
+
+model EvaluationTemplate {
+  id              String   @id @default(cuid()) @db.VarChar(30)
+  code            String   @db.VarChar(20) // ANEXO4
+  version         Int
+  name            String   @db.NVarChar(150)
+  scaleMin        Decimal  @db.Decimal(5, 2)
+  scaleMax        Decimal  @db.Decimal(5, 2)
+  scaleStep       Decimal  @db.Decimal(5, 2)
+  scaleLabelsJson String   @db.NVarChar(Max)
+  bandsJson       String   @db.NVarChar(Max)
+  isProvisional   Boolean  @default(true)
+  active          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  items       EvaluationTemplateItem[]
+  evaluations Evaluation[]
+
+  @@unique([code, version])
+}
+
+model EvaluationTemplateItem {
+  id          String             @id @default(cuid()) @db.VarChar(30)
+  templateId  String             @db.VarChar(30)
+  template    EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sortOrder   Int
+  code        String             @db.VarChar(20)
+  label       String             @db.NVarChar(200)
+  description String?            @db.NVarChar(1000)
+  groupName   String?            @db.NVarChar(100)
+
+  scores EvaluationScore[]
+
+  @@unique([templateId, code])
+}
+
+model Evaluation {
+  id                       String             @id @default(cuid()) @db.VarChar(30)
+  internshipId             String             @db.VarChar(30)
+  internship               Internship         @relation(fields: [internshipId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  templateId               String             @db.VarChar(30)
+  template                 EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kind                     String             @default("FINAL") @db.VarChar(10)
+  revision                 Int                @default(1)
+  supersedesEvaluationId   String?            @db.VarChar(30)
+  status                   String             @default("SCHEDULED") @db.VarChar(25) // ver D.2
+  opensAt                  DateTime           @db.Date
+  selfAssessmentDueDate    DateTime           @db.Date
+  dueDate                  DateTime           @db.Date
+  finalDueDate             DateTime           @db.Date
+  selfSubmittedAt          DateTime?
+  selfMissing              Boolean            @default(false)
+  selfGeneralComment       String?            @db.NVarChar(2000)
+  selfAverage              Decimal?           @db.Decimal(5, 2)
+  finalScore               Decimal?           @db.Decimal(5, 2)
+  classification           String?            @db.NVarChar(40)
+  tutorStrengths           String?            @db.NVarChar(4000)
+  tutorImprovements        String?            @db.NVarChar(4000)
+  tutorComments            String?            @db.NVarChar(4000)
+  absorptionRecommendation String?            @db.VarChar(5) // YES | NO | MAYBE
+  tutorSubmittedAt         DateTime?
+  headReviewSkipped        Boolean            @default(false)
+  headComment              String?            @db.NVarChar(4000)
+  headApprovedAt           DateTime?
+  internComment            String?            @db.NVarChar(2000)
+  internAcknowledgedAt     DateTime?
+  internAckMissing         Boolean            @default(false)
+  hrComment                String?            @db.NVarChar(4000)
+  hrApprovedAt             DateTime?
+  returnReason             String?            @db.NVarChar(2000)
+  concludedAt              DateTime?
+  issuedDocumentId         String?            @db.VarChar(30)
+  source                   String             @default("SYSTEM") @db.VarChar(6) // SYSTEM | IMPORT
+  version                  Int                @default(1)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  scores  EvaluationScore[]
+  history EvaluationStatusHistory[]
+
+  @@index([status, dueDate])
+  @@index([internshipId])
+}
+
+model EvaluationScore {
+  id           String                 @id @default(cuid()) @db.VarChar(30)
+  evaluationId String                 @db.VarChar(30)
+  evaluation   Evaluation             @relation(fields: [evaluationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  itemId       String                 @db.VarChar(30)
+  item         EvaluationTemplateItem @relation(fields: [itemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source       String                 @db.VarChar(5) // SELF | TUTOR
+  value        Decimal                @db.Decimal(5, 2)
+  comment      String?                @db.NVarChar(1000)
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([evaluationId, itemId, source])
+}
+
+model EvaluationStatusHistory {
+  id           String     @id @default(cuid()) @db.VarChar(30)
+  evaluationId String     @db.VarChar(30)
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  fromStatus   String?    @db.VarChar(25)
+  toStatus     String     @db.VarChar(25)
+  changedById  String?    @db.VarChar(30)
+  changedAt    DateTime   @default(now())
+  comment      String?    @db.NVarChar(2000)
+
+  @@index([evaluationId, changedAt])
+}
+
+// ─────────────────────────── Documentos e assinaturas ───────────────────────────
+
+model DocumentTemplate {
+  id                String    @id @default(cuid()) @db.VarChar(30)
+  type              String    @db.VarChar(25) // CONTRACT | INTERNSHIP_DECLARATION | CONTRACT_ADDENDUM
+  version           Int
+  title             String    @db.NVarChar(200)
+  bodyMarkdown      String    @db.NVarChar(Max)
+  placeholdersJson  String    @db.NVarChar(Max)
+  status            String    @default("DRAFT") @db.VarChar(10) // DRAFT | APPROVED | RETIRED
+  legalApprovalNote String?   @db.NVarChar(500)
+  approvedById      String?   @db.VarChar(30)
+  approvedAt        DateTime?
+  createdById       String    @db.VarChar(30)
+  createdAt         DateTime  @default(now())
+
+  contracts Contract[]
+
+  @@unique([type, version])
+}
+
+model Contract {
+  id                   String           @id @default(cuid()) @db.VarChar(30)
+  internshipId         String           @db.VarChar(30)
+  internship           Internship       @relation(fields: [internshipId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  templateId           String           @db.VarChar(30)
+  template             DocumentTemplate @relation(fields: [templateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  dataSnapshotJson     String           @db.NVarChar(Max)
+  contentHash          String           @db.VarChar(64)
+  status               String           @default("DRAFT") @db.VarChar(16) // DRAFT | PENDING_INTERN | PENDING_COMPANY | SIGNED | CANCELLED
+  signingMethod        String?          @db.VarChar(10) // ELECTRONIC | PAPER
+  internRefusalComment String?          @db.NVarChar(2000)
+  cancelReason         String?          @db.NVarChar(500)
+  sentAt               DateTime?
+  signedAt             DateTime?
+  issuedDocumentId     String?          @db.VarChar(30)
+  createdById          String           @db.VarChar(30)
+  version              Int              @default(1)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([internshipId])
+}
+
+model SignatureEvent {
+  id              String     @id @default(cuid()) @db.VarChar(30)
+  entityType      String     @db.VarChar(15) // CONTRACT | EVALUATION | DECLARATION
+  entityId        String     @db.VarChar(30)
+  step            String     @db.VarChar(20) // INTERN | COMPANY | TUTOR | DEPARTMENT_HEAD | INTERN_ACK | HR
+  signerUserId    String     @db.VarChar(30)
+  signer          User       @relation(fields: [signerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signerName      String     @db.NVarChar(120)
+  signerRoleLabel String     @db.NVarChar(80)
+  contentHash     String     @db.VarChar(64)
+  statement       String     @db.NVarChar(500)
+  method          String     @db.VarChar(12) // CANVAS_OTP | CANVAS
+  otpVerifiedAt   DateTime?
+  ipAddress       String     @db.VarChar(45)
+  userAgent       String     @db.NVarChar(500)
+  imageFileId     String     @unique @db.VarChar(30)
+  imageFile       StoredFile @relation(fields: [imageFileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invalidatedAt   DateTime? // devolução anula assinaturas posteriores (RN-AVA-10)
+  signedAt        DateTime   @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model SignatureOtp {
+  id         String    @id @default(cuid()) @db.VarChar(30)
+  userId     String    @db.VarChar(30)
+  entityType String    @db.VarChar(15)
+  entityId   String    @db.VarChar(30)
+  step       String    @db.VarChar(20)
+  codeHash   String    @db.VarChar(128)
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, entityType, entityId])
+}
+
+model IssuedDocument {
+  id               String     @id @default(cuid()) @db.VarChar(30)
+  type             String     @db.VarChar(25) // CONTRACT | EVALUATION_REPORT | INTERNSHIP_DECLARATION
+  entityType       String     @db.VarChar(15)
+  entityId         String     @db.VarChar(30)
+  revision         Int        @default(1)
+  fileId           String     @unique @db.VarChar(30)
+  file             StoredFile @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sha256           String     @db.VarChar(64)
+  verificationCode String     @unique @db.VarChar(12) // guardado sem hífens
+  holderInitials   String     @db.NVarChar(20)
+  signingMethod    String     @db.VarChar(10) // ELECTRONIC | PAPER
+  padesSigned      Boolean    @default(false)
+  status           String     @default("VALID") @db.VarChar(10) // VALID | SUPERSEDED | REVOKED
+  statusReason     String?    @db.NVarChar(500)
+  statusChangedAt  DateTime?
+  issuedById       String?    @db.VarChar(30)
+  issuedAt         DateTime   @default(now())
+
+  @@index([entityType, entityId])
+}
+
+// ─────────────────────────── Plataforma ───────────────────────────
+
+model Notification {
+  id                String    @id @default(cuid()) @db.VarChar(30)
+  templateCode      String    @db.VarChar(6) // N-01 … N-30
+  variant           String?   @db.VarChar(30)
+  recipientUserId   String?   @db.VarChar(30)
+  recipientEmail    String    @db.VarChar(254)
+  payloadJson       String    @db.NVarChar(Max)
+  idempotencyKey    String    @unique @db.VarChar(200)
+  status            String    @default("PENDING") @db.VarChar(10) // PENDING | SENT | FAILED | CANCELLED
+  attempts          Int       @default(0)
+  nextAttemptAt     DateTime  @default(now())
+  lastError         String?   @db.NVarChar(2000)
+  providerMessageId String?   @db.VarChar(200)
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([status, nextAttemptAt])
+}
+
+model InAppNotification {
+  id        String    @id @default(cuid()) @db.VarChar(30)
+  userId    String    @db.VarChar(30)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  title     String    @db.NVarChar(200)
+  body      String    @db.NVarChar(1000)
+  link      String?   @db.VarChar(500)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model Job {
+  id          String    @id @default(cuid()) @db.VarChar(30)
+  type        String    @db.VarChar(60)
+  payloadJson String    @db.NVarChar(Max)
+  runAt       DateTime
+  status      String    @default("PENDING") @db.VarChar(10) // PENDING | RUNNING | DONE | FAILED | CANCELLED
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  uniqueKey   String?   @db.VarChar(200) // único quando não nulo (Anexo L)
+  lockedAt    DateTime?
+  lockedBy    String?   @db.VarChar(100)
+  lastError   String?   @db.NVarChar(2000)
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, runAt])
+}
+
+model PrivacyNoticeVersion {
+  id           String    @id @default(cuid()) @db.VarChar(30)
+  version      String    @unique @db.VarChar(20)
+  title        String    @db.NVarChar(200)
+  bodyMarkdown String    @db.NVarChar(Max)
+  status       String    @default("DRAFT") @db.VarChar(10) // DRAFT | PUBLISHED | RETIRED
+  publishedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  consents ConsentRecord[]
+}
+
+model ConsentRecord {
+  id              String                @id @default(cuid()) @db.VarChar(30)
+  userId          String                @db.VarChar(30)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  type            String                @db.VarChar(20) // PRIVACY_NOTICE | TALENT_POOL
+  noticeVersionId String?               @db.VarChar(30)
+  noticeVersion   PrivacyNoticeVersion? @relation(fields: [noticeVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  granted         Boolean
+  ipAddress       String?               @db.VarChar(45)
+  userAgent       String?               @db.NVarChar(500)
+  createdAt       DateTime              @default(now())
+
+  @@index([userId, type])
+}
+
+model DataSubjectRequest {
+  id              String    @id @default(cuid()) @db.VarChar(30)
+  requesterUserId String    @db.VarChar(30)
+  type            String    @db.VarChar(15) // ACCESS | RECTIFICATION | DELETION | OBJECTION
+  status          String    @default("OPEN") @db.VarChar(12) // OPEN | IN_PROGRESS | COMPLETED | REJECTED
+  details         String?   @db.NVarChar(2000)
+  dueDate         DateTime  @db.Date
+  resolvedById    String?   @db.VarChar(30)
+  resolvedAt      DateTime?
+  resolutionNotes String?   @db.NVarChar(2000)
+  createdAt       DateTime  @default(now())
+
+  @@index([status, dueDate])
+}
+
+model RetentionRun {
+  id          String    @id @default(cuid()) @db.VarChar(30)
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  dryRun      Boolean
+  status      String    @db.VarChar(10) // RUNNING | DONE | FAILED
+  summaryJson String?   @db.NVarChar(Max)
+  triggeredBy String    @db.VarChar(30) // ID do utilizador ou SCHEDULER
+}
+
+model AuditLog {
+  id            BigInt   @id @default(autoincrement())
+  occurredAt    DateTime @default(now())
+  actorUserId   String?  @db.VarChar(30)
+  actorRoles    String?  @db.VarChar(200)
+  action        String   @db.VarChar(40)
+  entityType    String?  @db.VarChar(40)
+  entityId      String?  @db.VarChar(30)
+  summary       String?  @db.NVarChar(500)
+  diffJson      String?  @db.NVarChar(Max)
+  ipAddress     String?  @db.VarChar(45)
+  userAgent     String?  @db.NVarChar(500)
+  correlationId String?  @db.VarChar(40)
+  prevHash      String?  @db.VarChar(64)
+  hash          String?  @db.VarChar(64)
+
+  @@index([entityType, entityId])
+  @@index([actorUserId, occurredAt])
+  @@index([action, occurredAt])
+}
+
+model AiRun {
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  purpose       String    @db.VarChar(25) // TRANSCRIPT_EXTRACTION | CV_EXTRACTION | NLQ
+  provider      String    @db.VarChar(10)
+  modelName     String    @db.VarChar(100)
+  promptVersion String    @db.VarChar(20)
+  inputSha256   String    @db.VarChar(64)
+  status        String    @db.VarChar(16) // QUEUED | RUNNING | SUCCEEDED | FAILED | REJECTED_SCHEMA
+  errorCode     String?   @db.VarChar(60)
+  latencyMs     Int?
+  inputTokens   Int?
+  outputTokens  Int?
+  rawOutputJson String?   @db.NVarChar(Max)
+  rawPurgedAt   DateTime?
+  requestedById String?   @db.VarChar(30)
+  createdAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  transcripts Transcript[]
+  nlqQueries  NlqQuery[]
+
+  @@index([purpose, inputSha256])
+}
+
+model NlqQuery {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  userId      String   @db.VarChar(30)
+  question    String   @db.NVarChar(300)
+  filterJson  String?  @db.NVarChar(Max)
+  status      String   @db.VarChar(10) // OK | UNMAPPED | REFUSED | ERROR
+  resultCount Int?
+  aiRunId     String?  @db.VarChar(30)
+  aiRun       AiRun?   @relation(fields: [aiRunId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model ImportBatch {
+  id          String     @id @default(cuid()) @db.VarChar(30)
+  kind        String     @db.VarChar(30) // DEPARTMENTS | STAFF | ACTIVE_INTERNS | HISTORICAL_EVALUATIONS
+  fileId      String     @unique @db.VarChar(30)
+  file        StoredFile @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  dryRun      Boolean
+  status      String     @db.VarChar(12) // RUNNING | DONE | FAILED
+  reportJson  String?    @db.NVarChar(Max)
+  createdById String     @db.VarChar(30)
+  createdAt   DateTime   @default(now())
+  finishedAt  DateTime?
+}
