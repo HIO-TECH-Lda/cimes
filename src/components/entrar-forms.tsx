@@ -55,12 +55,16 @@ export function EntrarForms({
     try {
       const { error } = await authClient.signIn.email({ email, password });
       if (error) {
+        // Só as credenciais inválidas (401) alimentam o bloqueio progressivo
+        // (RF-AUT-07); 429 (limite por IP) e erros de servidor não contam.
+        if (error.status === 401) {
+          void fetch("/api/entrar/falha", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ email }),
+          }).catch(() => undefined);
+        }
         // Resposta neutra (RF-AUT-05): não revela se a conta existe.
-        void fetch("/api/entrar/falha", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email }),
-        }).catch(() => undefined);
         setErro(pt.auth.erroCredenciais);
         return;
       }

@@ -4,6 +4,7 @@ import { createCandidateRegistrationService } from "@/server/services/candidate-
 import { createConsentRepository } from "@/server/repositories/consent-repository";
 import { createUserRepository } from "@/server/repositories/user-repository";
 import { getPrismaClient } from "@/server/repositories/db";
+import { getProcessLogger } from "@/server/infra/logger";
 
 /**
  * Registo de candidato (RF-AUT-03): formulário POST sem JavaScript obrigatório.
@@ -42,7 +43,10 @@ export async function POST(request: Request) {
       userAgent: request.headers.get("user-agent"),
     });
   } catch (error) {
+    // Mensagens concretas ficam no log do servidor (R-04: não revelar ao cliente
+    // mais do que o necessário); a página mostra o código correspondente.
     const message = error instanceof Error ? error.message : "";
+    getProcessLogger().warn({ err: message }, "registo de candidato recusado");
     const code = message.includes("captcha")
       ? "captchaFalhou"
       : message.includes("senha")
