@@ -1,8 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server";
+﻿import { NextResponse, type NextRequest } from "next/server";
 
 import { ipInAnyCidr } from "@/lib/cidr";
 import { getConfig } from "@/server/infra/config";
-import { logger } from "@/server/infra/logger";
+import { getProcessLogger } from "@/server/infra/logger";
 
 /**
  * G.2 / RNF-02: o proxy gera ou propaga `x-correlation-id`, aplica os cabeçalhos de
@@ -38,7 +38,7 @@ export function proxy(request: NextRequest): NextResponse {
     const ip = clientIp(request);
     if (cfg.internalAllowedCidrs.length > 0 && !ipInAnyCidr(ip, cfg.internalAllowedCidrs)) {
       // R-04: não revelar a existência da rota.
-      logger.warn({ correlationId, path: requestPath }, "rota interna bloqueada por CIDR");
+      getProcessLogger().warn({ correlationId, path: requestPath }, "rota interna bloqueada por CIDR");
       return new NextResponse(null, { status: 404 });
     }
   }

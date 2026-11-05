@@ -1,17 +1,28 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { pt } from "@/i18n/pt-MZ";
+import Link from "next/link";
 
-/** M0: fundação da entrada. A autenticação real (Entra ID / Better Auth) chega no M1. */
+import { pt } from "@/i18n/pt-MZ";
+import { EntrarForms } from "@/components/entrar-forms";
+import { getConfig } from "@/server/infra/config";
+
+/** Entrada (M01): colaboradores por Entra ID ou local (RF-AUT-01/02); candidatos por e-mail e senha (RF-AUT-03). */
 export default function EntrarPage() {
+  const cfg = getConfig();
+  const entraEnabled =
+    cfg.staffAuthMode === "entra" &&
+    Boolean(cfg.microsoftClientId) &&
+    Boolean(cfg.microsoftClientSecret) &&
+    Boolean(cfg.microsoftTenantId);
+  const localStaffEnabled = cfg.staffAuthMode === "local";
+
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>{pt.nav.entrar}</CardTitle>
-        <CardDescription>{pt.placeholder.emConstrucao}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground text-sm">{pt.placeholder.acessoPendente}</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <EntrarForms entraEnabled={entraEnabled} localStaffEnabled={localStaffEnabled} />
+      <p className="text-muted-foreground text-center text-sm">
+        {pt.auth.semConta}{" "}
+        <Link href="/registar" className="underline">
+          {pt.auth.registar}
+        </Link>
+      </p>
+    </div>
   );
 }

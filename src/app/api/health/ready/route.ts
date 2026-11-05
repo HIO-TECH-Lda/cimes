@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 import { getConfig } from "@/server/infra/config";
-import { logger } from "@/server/infra/logger";
+import { getProcessLogger } from "@/server/infra/logger";
 import { storageWriteProbe } from "@/server/infra/storage";
 import { getPrismaClient, pingDatabase } from "@/server/repositories/db";
 
@@ -19,7 +19,7 @@ export async function GET(): Promise<NextResponse> {
   } catch (error) {
     checks.database = "falhou";
     ok = false;
-    logger.error({ err: error instanceof Error ? error.message : "desconhecido" }, "health/ready: base de dados indisponível");
+    getProcessLogger().error({ err: error instanceof Error ? error.message : "desconhecido" }, "health/ready: base de dados indisponível");
   }
 
   try {
@@ -28,7 +28,7 @@ export async function GET(): Promise<NextResponse> {
   } catch (error) {
     checks.storage = "falhou";
     ok = false;
-    logger.error({ err: error instanceof Error ? error.message : "desconhecido" }, "health/ready: armazenamento indisponível");
+    getProcessLogger().error({ err: error instanceof Error ? error.message : "desconhecido" }, "health/ready: armazenamento indisponível");
   }
 
   return NextResponse.json(

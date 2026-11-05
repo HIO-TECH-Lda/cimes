@@ -6,6 +6,8 @@ import { getConfig } from "@/server/infra/config";
 import { getPrismaClient } from "@/server/repositories/db";
 import { createUserRepository } from "@/server/repositories/user-repository";
 import { createNotificationRepository } from "@/server/repositories/notification-repository";
+import { createAuditService } from "@/server/services/audit";
+import { createLogger } from "@/server/infra/logger";
 
 /**
  * Autenticação (M01, Better Auth 1.7 — APIs confirmadas na versão fixada, R-20):
@@ -26,6 +28,7 @@ export function createAuth() {
   const prisma = getPrismaClient();
   const users = createUserRepository(prisma);
   const notifications = createNotificationRepository(prisma);
+  const logger = createLogger();
 
   const entraEnabled =
     cfg.staffAuthMode === "entra" &&
@@ -149,6 +152,26 @@ export function createAuth() {
             }
             return;
           },
+          // R-11: toda a entrada bem-sucedida é auditada (LOGIN_SUCCEEDED),
+          // local ou Entra; IP, user-agent e correlação vêm dos cabeçalhos.
+          after: async (session, context) => {
+            const requestHeaders = context?.request?.headers;
+            try {
+              await createAuditService(prisma).record({
+                actor: { userId: session.userId as string, roles: [] },
+                action: "LOGIN_SUCCEEDED",
+                entityType: "User",
+                entityId: session.userId as string,
+                ipAddress: requestHeaders?.get("x-forwarded-for") ?? requestHeaders?.get("x-real-ip") ?? null,
+                userAgent: requestHeaders?.get("user-agent") ?? null,
+                correlationId: requestHeaders?.get("x-correlation-id") ?? null,
+              });
+            } catch (error) {
+              // Auditoria nunca passa em silêncio (R-11): regista no pino; a
+              // sessão já existe, portanto não se desfaz a entrada.
+              logger.error({ err: error }, "falha ao auditar LOGIN_SUCCEEDED");
+            }
+          },
         },
       },
     },
@@ -156,7 +179,7 @@ export function createAuth() {
 }
 
 /** Instância única por processo (a config é validada uma vez, RNF-05). */
-type Auth = ReturnType<typeof createAuth>;
+export type Auth = ReturnType<typeof createAuth>;
 
 const globalForAuth = globalThis as unknown as { cimesAuth?: Auth };
 

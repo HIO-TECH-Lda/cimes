@@ -38,5 +38,11 @@ export function createLogger(cfg: AppConfig = getConfig(), correlationId?: strin
   );
 }
 
-/** Logger de processo (sem correlationId; os pedidos usam createLogger com id). */
-export const logger: Logger = createLogger();
+/** Logger de processo (sem correlationId; os pedidos usam createLogger com id).
+ * Preguiçoso: criado à primeira utilização para não exigir env na importação
+ * (testes unitários importam módulos que só por efeito usam o logger). */
+let processLogger: Logger | null = null;
+export function getProcessLogger(): Logger {
+  processLogger ??= createLogger();
+  return processLogger;
+}

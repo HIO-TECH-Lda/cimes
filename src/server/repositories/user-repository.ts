@@ -35,5 +35,15 @@ export function createUserRepository(prisma: PrismaClient) {
     async setLockedUntil(userId: string, lockedUntil: Date | null): Promise<void> {
       await prisma.user.update({ where: { id: userId }, data: { lockedUntil } });
     },
+
+    /** RF-AUT-09: colaboradores activos com atribuições (back-office RH-G/ADM). */
+    async listStaffWithRoles() {
+      return prisma.user.findMany({
+        where: { userType: "STAFF", status: { not: "DELETED" } },
+        orderBy: { email: "asc" },
+        take: 100,
+        select: { id: true, email: true, name: true, roleAssignments: true },
+      });
+    },
   };
 }

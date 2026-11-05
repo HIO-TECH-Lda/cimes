@@ -36,6 +36,9 @@ export async function getSessionPrincipal(
 
   const user = result.user;
   if (user.status !== "ACTIVE") return null;
+  // RF-AUT-07: conta bloqueada segue como anónimo (a aplicação não pode ser
+  // contornada pelo cliente; o desbloqueio dá-se ao expirar lockedUntil).
+  if (user.lockedUntil && user.lockedUntil > clock.now()) return null;
 
   const prisma = getPrismaClient();
   const sessions = createSessionRepository(prisma);
