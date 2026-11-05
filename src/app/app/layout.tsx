@@ -13,6 +13,7 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
     { href: "/app/parametros", label: pt.app.parametros },
     { href: "/app/catalogos", label: pt.app.catalogos },
     { href: "/app/feriados", label: pt.feriados.titulo },
+    { href: "/app/documentos", label: pt.documentos.titulo },
     { href: "/app/auditoria", label: pt.app.auditoria },
     { href: "/app/saude", label: pt.app.saude },
     { href: "/conta", label: pt.conta.titulo },

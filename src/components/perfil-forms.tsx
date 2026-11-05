@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { z } from "zod";
 
 import { pt } from "@/i18n/pt-MZ";
+import { DocumentosForms, type DocumentoVista } from "@/components/documentos-forms";
 import {
   ACADEMIC_STATUSES,
   LANGUAGE_LEVELS,
@@ -95,6 +96,7 @@ export function PerfilForms({
   nuit,
   skillIds,
   catalogo,
+  documentos,
 }: {
   email: string;
   passosIniciais: ProfileStep[];
@@ -103,6 +105,7 @@ export function PerfilForms({
   nuit: string | null;
   skillIds: string[];
   catalogo: CatalogoPerfil;
+  documentos: DocumentoVista[];
 }) {
   const inicial: ProfileStep = (() => {
     for (const p of ["pessoais", "contactos", "formacao", "competencias"] as ProfileStep[]) {
@@ -611,6 +614,7 @@ export function PerfilForms({
           <>
             {cabecalhoPasso(pt.perfil.passos.documentos, pt.perfil.documentosDescricao)}
             <CardContent>
+              <DocumentosForms documentos={documentos} academicStatus={perfil?.academicStatus ?? null} />
               {navegacao(() => undefined, null)}
             </CardContent>
           </>

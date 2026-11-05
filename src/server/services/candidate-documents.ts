@@ -73,6 +73,23 @@ export function createCandidateDocumentService(deps: {
     return documento;
   }
 
+  /** RF-DOC-07: fila de validação do RH, com o nome do candidato. */
+  async function listForValidation(principal: Principal, apenasPendentes = true) {
+    assertCan(principal, "application.validate");
+    const documentos = (await client.candidateDocument.findMany({
+      where: apenasPendentes ? { status: "UPLOADED" } : { status: { not: "REPLACED" } },
+      include: {
+        file: { select: { originalName: true, mimeType: true, sizeBytes: true, pageCount: true } },
+        candidate: { select: { fullName: true, user: { select: { email: true } } } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 100,
+    })) as unknown as Array<
+      DocumentRow & { candidate: { fullName: string; user: { email: string } } }
+    >;
+    return documentos;
+  }
+
   /** Lista dos documentos do próprio candidato. */
   async function listOwn(principal: Principal) {
     assertCan(principal, "own.documentManage", { ownerUserId: principal.userId });
@@ -294,5 +311,5 @@ export function createCandidateDocumentService(deps: {
 
   deps.logger?.debug("servico de documentos do candidato criado");
 
-  return { listOwn, upload, validate, reject, readFile, loadDocument };
+  return { listOwn, upload, validate, reject, readFile, loadDocument, listForValidation };
 }
