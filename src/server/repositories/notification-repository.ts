@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { DbClient, PrismaClient } from "@/server/repositories/db";
 
 /**
  * Outbox de notificações (base de M14): em M1 as notificações N-01 (verificação
@@ -22,7 +22,8 @@ export type EnqueueNotificationInput = {
 
 export type NotificationRepository = ReturnType<typeof createNotificationRepository>;
 
-export function createNotificationRepository(prisma: PrismaClient) {
+export function createNotificationRepository(prisma: DbClient) {
+  const client = prisma as PrismaClient;
   return {
     async create(input: EnqueueNotificationInput) {
       const idempotencyKey =
@@ -37,7 +38,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
           )
           .digest("hex")
           .slice(0, 200);
-      return prisma.notification.create({
+      return client.notification.create({
         data: {
           templateCode: input.templateCode,
           variant: input.variant,
@@ -51,7 +52,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
 
     /** RF-AUT-05/07: contagem de envios recentes para limites por e-mail. */
     async countRecent(templateCode: string, recipientEmail: string, since: Date) {
-      return prisma.notification.count({
+      return client.notification.count({
         where: {
           templateCode,
           recipientEmail: recipientEmail.toLowerCase(),
@@ -62,7 +63,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
 
     /** Linhas PENDING cuja hora de tentativa chegou (RF-NOT-03), ordenadas. */
     async findDue({ now, limit }: { now: Date; limit: number }) {
-      return prisma.notification.findMany({
+      return client.notification.findMany({
         where: { status: "PENDING", nextAttemptAt: { lte: now } },
         orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
         take: limit,
@@ -71,7 +72,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
 
     /** Marca SENT; a condição PENDING evita duplo envio por dois workers. */
     async markSent({ id, sentAt, providerMessageId }: { id: string; sentAt: Date; providerMessageId: string | null }) {
-      return prisma.notification.updateMany({
+      return client.notification.updateMany({
         where: { id, status: "PENDING" },
         data: { status: "SENT", sentAt, providerMessageId, lastError: null },
       });
@@ -84,7 +85,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
       lastError: string;
       nextAttemptAt: Date;
     }) {
-      return prisma.notification.updateMany({
+      return client.notification.updateMany({
         where: { id, status: "PENDING" },
         data: { attempts, lastError, nextAttemptAt },
       });
@@ -92,7 +93,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
 
     /** Falha definitiva (RF-NOT-03: depois das retentativas). */
     async markFailed({ id, lastError, attempts }: { id: string; lastError: string; attempts?: number }) {
-      return prisma.notification.updateMany({
+      return client.notification.updateMany({
         where: { id, status: "PENDING" },
         data: attempts === undefined ? { status: "FAILED", lastError } : { status: "FAILED", lastError, attempts },
       });
@@ -105,7 +106,7 @@ export function createNotificationRepository(prisma: PrismaClient) {
       body: string;
       link: string | null;
     }) {
-      return prisma.inAppNotification.create({ data: { userId, title, body, link } });
+      return client.inAppNotification.create({ data: { userId, title, body, link } });
     },
   };
 }

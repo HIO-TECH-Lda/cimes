@@ -40,9 +40,17 @@ export type PermissionEntry = {
  */
 export const PERMISSION_MATRIX: PermissionEntry[] = [
   { action: "opening.requestCreate", grants: ["DEPARTMENT_HEAD:DEPARTMENT", "HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
+  { action: "opening.submit", grants: ["DEPARTMENT_HEAD:DEPARTMENT", "HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
   { action: "opening.requestReview", grants: ["HR_MANAGER:ALL"] },
   { action: "opening.publish", grants: ["HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
+  { action: "opening.reopen", grants: ["HR_MANAGER:ALL"] },
+  { action: "opening.close", grants: ["HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
+  { action: "opening.complete", grants: ["HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
   { action: "opening.cancel", grants: ["HR_MANAGER:ALL"] },
+  { action: "opening.editPublished", grants: ["DEPARTMENT_HEAD:DEPARTMENT", "HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
+  { action: "opening.editScoring", grants: ["DEPARTMENT_HEAD:DEPARTMENT", "HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
+  { action: "opening.view", grants: ["DEPARTMENT_HEAD:DEPARTMENT", "HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
+  { action: "opening.exportCsv", grants: ["HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
   { action: "own.profileManage", grants: ["CANDIDATE:OWN", "INTERN:OWN"] },
   {
     action: "application.view",

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { DbClient, PrismaClient } from "@/server/repositories/db";
 
 /**
  * Repositório de papéis (R-02). Papéis válidos: `validFrom <= agora` e
@@ -7,11 +7,12 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 export type RoleAssignmentRepository = ReturnType<typeof createRoleAssignmentRepository>;
 
-export function createRoleAssignmentRepository(prisma: PrismaClient) {
+export function createRoleAssignmentRepository(prisma: DbClient) {
+  const client = prisma as PrismaClient;
   return {
     /** Papéis válidos de um utilizador no instante dado. */
     async findValidByUser(userId: string, at: Date) {
-      return prisma.roleAssignment.findMany({
+      return client.roleAssignment.findMany({
         where: {
           userId,
           validFrom: { lte: at },
@@ -31,7 +32,7 @@ export function createRoleAssignmentRepository(prisma: PrismaClient) {
       reason?: string | null;
       grantedById: string;
     }) {
-      return prisma.roleAssignment.create({
+      return client.roleAssignment.create({
         data: {
           userId: input.userId,
           role: input.role,
@@ -46,7 +47,7 @@ export function createRoleAssignmentRepository(prisma: PrismaClient) {
 
     /** RF-AUT-09: termina uma atribuição (nunca apaga — é histórico auditável). */
     async revoke(id: string, revokedAt: Date) {
-      return prisma.roleAssignment.update({
+      return client.roleAssignment.update({
         where: { id },
         data: { validTo: revokedAt },
       });
@@ -54,12 +55,12 @@ export function createRoleAssignmentRepository(prisma: PrismaClient) {
 
     /** Vê uma atribuição concreta (para verificar antes de terminar). */
     async findById(id: string) {
-      return prisma.roleAssignment.findUnique({ where: { id } });
+      return client.roleAssignment.findUnique({ where: { id } });
     },
 
     /** E-mail do primeiro SYSTEM_ADMIN activo (destino do N-30, RF-NOT-03). */
     async findSystemAdminEmail(at: Date) {
-      const row = await prisma.roleAssignment.findFirst({
+      const row = await client.roleAssignment.findFirst({
         where: {
           role: "SYSTEM_ADMIN",
           validFrom: { lte: at },
@@ -70,6 +71,30 @@ export function createRoleAssignmentRepository(prisma: PrismaClient) {
         orderBy: { validFrom: "asc" },
       });
       return row?.user.email ?? null;
+    },
+
+    /**
+     * Destinatários com papéis válidos no instante dado (ex.: N-21 ao RH,
+     * Anexo E). Devolve pares { userId, email } sem duplicados.
+     */
+    async findValidRecipients(roles: string[], at: Date) {
+      const rows = await client.roleAssignment.findMany({
+        where: {
+          role: { in: roles },
+          validFrom: { lte: at },
+          OR: [{ validTo: null }, { validTo: { gt: at } }],
+        },
+        include: { user: { select: { id: true, email: true, status: true } } },
+        orderBy: { validFrom: "asc" },
+      });
+      const vistos = new Set<string>();
+      const out: Array<{ userId: string; email: string }> = [];
+      for (const row of rows) {
+        if (row.user.status !== "ACTIVE" || vistos.has(row.userId)) continue;
+        vistos.add(row.userId);
+        out.push({ userId: row.userId, email: row.user.email });
+      }
+      return out;
     },
   };
 }

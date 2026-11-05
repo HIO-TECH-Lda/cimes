@@ -58,7 +58,8 @@ export const openingDraftCompleteSchema = openingDraftSchema
     message: "Pelo menos um curso ou área aceite (RF-VAG-01)",
   });
 
-export type OpeningDraftInput = z.infer<typeof openingDraftSchema>;
+/** Tipo de entrada (o cliente pode omitir campos com default). */
+export type OpeningDraftInput = z.input<typeof openingDraftCompleteSchema>;
 
 /** Edição de vaga publicada (RF-VAG-06): só descrição e prazo. */
 export const openingPublishedEditSchema = z.object({

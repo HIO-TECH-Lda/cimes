@@ -8,7 +8,7 @@ import {
   type AuditLogFilters,
   type AuditLogRepository,
 } from "@/server/repositories/audit-log-repository";
-import type { PrismaClient } from "@/server/repositories/db";
+import type { DbClient } from "@/server/repositories/db";
 
 /**
  * Serviço de auditoria (M17): grava acções RF-AUD-03 com os campos RF-AUD-02 e
@@ -32,7 +32,7 @@ export type RecordAuditInput = {
 export type AuditService = ReturnType<typeof createAuditService>;
 
 export function createAuditService(
-  prisma: PrismaClient,
+  prisma: DbClient,
   logger: Logger = createLogger(),
 ) {
   const repository: AuditLogRepository = createAuditLogRepository(prisma);

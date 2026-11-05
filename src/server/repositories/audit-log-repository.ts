@@ -1,4 +1,5 @@
 import { type Prisma, type PrismaClient } from "@/generated/prisma/client";
+import type { DbClient } from "@/server/repositories/db";
 
 import {
   AUDIT_ACTIONS,
@@ -43,11 +44,12 @@ export type AuditLogFilters = {
 
 export type AuditLogRepository = ReturnType<typeof createAuditLogRepository>;
 
-export function createAuditLogRepository(prisma: PrismaClient) {
+export function createAuditLogRepository(prisma: DbClient) {
+  const client = prisma as PrismaClient;
   return {
     /** Acrescenta uma linha. Nenhuma operação de alteração existe aqui. */
     async create(input: CreateAuditLogInput) {
-      return prisma.auditLog.create({
+      return client.auditLog.create({
         data: {
           actorUserId: input.actorUserId,
           actorRoles: input.actorRoles.length > 0 ? input.actorRoles.join(",") : null,
@@ -88,8 +90,8 @@ export function createAuditLogRepository(prisma: PrismaClient) {
       const pageSize = Math.min(filters.pageSize ?? 50, 200);
       const page = Math.max(filters.page ?? 1, 1);
       const [total, rows] = await Promise.all([
-        prisma.auditLog.count({ where }),
-        prisma.auditLog.findMany({
+        client.auditLog.count({ where }),
+        client.auditLog.findMany({
           where,
           orderBy: { occurredAt: "desc" },
           skip: (page - 1) * pageSize,
