@@ -33,9 +33,9 @@ describe("leitor CSV dos seeds (Anexo F)", () => {
 describe("parâmetros do sistema (RF-ADM-11)", () => {
   it("todos os códigos têm esquema e omissão", () => {
     const defaults = defaultSettings();
-    for (const { code } of defaults) {
+    for (const { code, valueJson } of defaults) {
       expect(SETTING_SCHEMAS).toHaveProperty(code);
-      expect(validateSetting(code, JSON.stringify(defaults.find((d) => d.code === code)?.valueJson)).ok).toBe(true);
+      expect(validateSetting(code, valueJson).ok).toBe(true);
     }
   });
 
