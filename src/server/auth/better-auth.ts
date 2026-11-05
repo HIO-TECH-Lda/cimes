@@ -138,8 +138,9 @@ export function createAuth() {
         "/sign-in/email": { window: 15 * 60, max: 30 },
         // RF-AUT-07: registo limitado a 5 por hora por IP.
         "/sign-up/email": { window: 60 * 60, max: 5 },
-        // RF-AUT-07: recuperação limitada a 3 por hora por IP.
-        "/forget-password": { window: 60 * 60, max: 3 },
+        // RF-AUT-07: recuperação limitada a 3 por hora por IP. Na 1.7 o endpoint
+        // chama-se /request-password-reset ("/forget-password" é do plugin email-otp).
+        "/request-password-reset": { window: 60 * 60, max: 3 },
       },
     },
 

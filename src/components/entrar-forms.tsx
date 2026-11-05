@@ -209,6 +209,11 @@ export function EntrarForms({
                 {pt.auth.registar}
               </a>
             </p>
+            <p className="text-muted-foreground text-sm">
+              <a href="/repor-senha" className="underline">
+                {pt.auth.esqueceuSenha}
+              </a>
+            </p>
           </CardContent>
         </Card>
       </TabsContent>
