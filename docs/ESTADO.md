@@ -174,6 +174,8 @@ Pré-requisito: M0 passos 1-3 (base de dados, migrações e `npm run dev` na :30
 
 1. **Entrada de colaborador (RF-AUT-02):** `/entrar`, separador "Colaboradores",
    `admin@exemplo.mz` / `Cimes!Dev2026` → destino decidido no servidor → `/app`.
+   Em desenvolvimento com `DEMO_MODE=1` no `.env.local`, há botões "Entrar como …"
+   que entram com um clique (nunca em produção).
 2. **Back-office (RF-AUT-09):** `/app/utilizadores` — ver directório, conceder
    `TUTOR` a `tutor1@exemplo.mz` no departamento de destino; ficar sem permissão em
    `/app/parametros` com um papel sem acção → "Acesso negado" (403 server-side).
