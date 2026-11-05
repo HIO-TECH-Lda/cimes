@@ -92,12 +92,17 @@ model Verification {
 }
 
 model TwoFactor {
-  id          String @id @default(cuid()) @db.VarChar(30)
-  secret      String @db.VarChar(255)
-  backupCodes String @db.NVarChar(Max)
-  userId      String @db.VarChar(30)
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                      String    @id @default(cuid()) @db.VarChar(30)
+  secret                  String    @db.VarChar(255)
+  backupCodes             String    @db.NVarChar(Max)
+  // Colunas acrescentadas na reconciliação com o Better Auth 1.7 (ADR-0002).
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+  userId                  String    @db.VarChar(30)
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@index([secret])
   @@index([userId])
 }
 

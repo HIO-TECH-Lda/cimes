@@ -62,3 +62,27 @@ dependência nova fora da lista permitida (R-17).
   (Dependabot/Renovate); saltos de major exigem novo ADR e revisão da documentação
   oficial (R-20). Desenvolvimento local em Node 22 documentado no `docs/ESTADO.md`
   e nas perguntas; a execução de referência é Node 26 no CI.
+
+## ADR-0002 - Modelos do Better Auth 1.7 reconciliados com o Anexo A
+
+- **Data:** 2026-11-05
+- **Estado:** aceite
+- **Contexto:** o Anexo A manda gerar os modelos do Better Auth com o CLI da versao
+  fixada (1.7.17) e reconciliar com o esquema, registando ajustes. O pacote
+  @better-auth/cli esta descontinuado na linha 1.7 (ultimo 1.4.21); a geracao
+  de referencia correu com ele e a validacao de alinhamento usou o proprio runtime
+  1.7.17 (aviso "Prisma schema mismatch" ao carregar a configuracao).
+- **Decisao:** manter o esquema do Anexo A e acrescentar ao modelo TwoFactor as
+  colunas que a linha 1.7 exige (erified Boolean? @default(true),
+  ailedVerificationCount Int? @default(0), lockedUntil DateTime?) e o indice
+  @@index([secret]); migracao 20261105071355_two_factor_reconciliation. A
+  instalacao do etter-auth@1.7.17 entrou agora no package.json (o ADR-0001
+  fixou a versao mas o pacote so se instala no marco em que e usado, R-17).
+  Fica src/server/auth/cli-instance.ts para regenerar o esquema de referencia.
+- **Alternativas:** replicar o modelo antigo (rejeitado - o plugin 	woFactor de
+  1.7 falha sem as colunas); mudar de adaptador Kysely (rejeitado - a especificacao
+  manda Prisma com provider: "sqlserver", confirmado em better-auth.com/docs).
+- **Consequencias:** o visualizador de sessoes e o bloqueio de conta (RF-AUT-05 a
+  07) podem confiar nas colunas do Anexo A; 
+px prisma validate e o runtime 1.7.17
+  passam sem avisos; qualquer acrescimo do Better Auth num patch volta a este ADR.

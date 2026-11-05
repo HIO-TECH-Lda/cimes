@@ -57,6 +57,8 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url().optional(),
   STAFF_AUTH_MODE: z.enum(["entra", "local"]).default("entra"),
+  MICROSOFT_CLIENT_ID: z.string().optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_TENANT_ID: z.string().optional(),
   ALTCHA_HMAC_KEY: z.string().optional(),
 
@@ -91,6 +93,10 @@ export type AppConfig = {
   databasePoolMax: number;
   betterAuthSecret: string;
   staffAuthMode: "entra" | "local";
+  microsoftClientId?: string;
+  microsoftClientSecret?: string;
+  microsoftTenantId?: string;
+  altchaHmacKey?: string;
   fileStoragePath: string;
   fileEncryptionKeys: Record<string, string>;
   fileEncryptionActiveKeyId: string;
@@ -131,6 +137,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     databasePoolMax: v.DATABASE_POOL_MAX,
     betterAuthSecret: v.BETTER_AUTH_SECRET,
     staffAuthMode: v.STAFF_AUTH_MODE,
+    microsoftClientId: v.MICROSOFT_CLIENT_ID,
+    microsoftClientSecret: v.MICROSOFT_CLIENT_SECRET,
+    microsoftTenantId: v.MICROSOFT_TENANT_ID,
+    altchaHmacKey: v.ALTCHA_HMAC_KEY,
     fileStoragePath: v.FILE_STORAGE_PATH,
     fileEncryptionKeys: v.FILE_ENCRYPTION_KEYS,
     fileEncryptionActiveKeyId: v.FILE_ENCRYPTION_ACTIVE_KEY_ID,

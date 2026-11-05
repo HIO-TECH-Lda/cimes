@@ -28,47 +28,91 @@ com um guião de demonstração em passos e dados sintéticos.
 
 ## Sessão actual
 
-- **Marco:** M0 — Fundações
-- **Feito (2026-11-05):**
-  - Configuração do projecto: `package.json` (versões fixadas do ADR-0001), `tsconfig.json`
-    (TypeScript strict), `next.config.ts` (standalone, `serverExternalPackages` para mssql/
-    adapter/pino), `eslint.config.mjs` (flat; proibição de `any` e de Prisma fora dos
-    repositórios), `.prettierrc`, `postcss.config.mjs`, `components.json`, `vitest.config.ts`
-    (projectos unit/integration com alias `@`), `playwright.config.ts` (porta 3100, três
-    motores), `prisma.config.ts` (precedência de env: processo > `.env.local` > `.env`).
-  - Esquema Prisma do Anexo A em `prisma/schema.prisma`; `npx prisma validate` e
-    `npx prisma format` OK; **migração inicial `20261105064535_init` aplicada a base
-    vazia** (Docker SQL Server 2022 e Testcontainers); cliente gerado para
-    `src/generated/prisma` (gitignored); `prisma/seed/seed.ts` stub.
-  - Infraestrutura de servidor: `src/server/infra/{config,logger,clock,db-config,storage}.ts`
-    (config Zod RNF-05; pino com redacção RNF-13; relógio injectável G.10; parser do URL
-    `sqlserver://` do Anexo I com porta/encrypt por omissão; storage local com caminho
-    configurável), `src/server/repositories/db.ts` (PrismaClient + `PrismaMssql`, pool
-    explícito, `pingDatabase`).
-  - Aplicação: `src/proxy.ts` (correlação G.2, cabeçalhos RNF-02 com CSP por nonce,
-    restrição `/app/*` por CIDR G.12), layouts e páginas (público, entrar, candidato,
-    estagiário, back-office, 404/erro), `src/i18n/pt-MZ.ts`, `src/lib/{utils,cidr}.ts`,
-    `src/components/ui/*` (shadcn/ui), `/api/health` e `/api/health/ready`.
-  - Worker stub (`worker/index.ts`, G.10): valida config, logger, batimento; sem tarefas
-    agendadas até M14.
-  - Docker Compose de desenvolvimento (`docker/compose.dev.yml`): SQL Server 2022 + Mailpit.
-  - Testes: unitários (config RNF-05, db-config G.4, cidr, clock) — 16 verdes;
-    integração (Testcontainers MSSQL: migração aplicada a base vazia, grava/lê registo,
-    `pingDatabase`) — 3 verdes; E2E fumo (`@smoke`: portal público, `/api/health`,
-    cabeçalhos + `x-correlation-id`, 404 R-04) — 4 verdes nos três motores.
-  - `/api/health/ready` verificado a correr (`{"status":"ok","checks":{"database":"ok",
-    "storage":"ok"}}`) contra o SQL Server do Docker Compose.
-  - CI em `.github/workflows/ci.yml` (Node 26, env sintético inline, lint+tipos+testes+
-    integração+E2E+build+audit+licenças); `npm audit --omit=dev` local sem
-    vulnerabilidades; `scripts/check-licenses.mjs` OK (119 dependências de produção).
-  - Ambiente local resolvido nesta sessão: WSL2 + Docker Desktop instalados; serviço
-    `docker` do chocolatey desactivado (conflito com o pipe do Docker Desktop); binário
-    `@next/swc-win32-x64-msvc` reinstalado (vinha corrupto); `docker-credential-desktop`
-    acrescentado ao PATH do utilizador.
-- **Em falta (M0):** CI verde — depende de repositório remoto no GitHub (Q-004, P-33).
-  Nada mais; `npm run check` verde localmente (lint, tipos, unit, integração, E2E fumo).
-- **Bloqueios:** nenhum bloqueante do M0. Para fechar a definição de Pronto falta
-  apenas o push para um remoto (decisão do operador, Q-004).
+- **Marco:** M1 — Identidade, permissões e catálogos (M01, M02, base de M17)
+- **Critérios de saída (Parte H):** RF-AUT-11 verde; entrada por SSO em homologação
+  (ou contas locais, P-20); catálogos e parâmetros geríveis; auditoria a gravar.
+- **Decisões prévias que se aplicam:** P-20 — colaboradores entram por Microsoft Entra ID
+  (MFA por acesso condicional); contas locais de colaborador servem desenvolvimento,
+  testes e contingência (`STAFF_AUTH_MODE=entra|local`). P-25 a P-28 — seeds iniciais do
+  Anexo F. Os modelos do Better Auth são gerados com o CLI da versão fixada e
+  reconciliados com o Anexo A; ajustes ficam num ADR (Anexo A, nota final).
+
+### Plano M1 (escrito a 2026-11-05, antes de qualquer código de M1)
+
+Ordem de execução, com testes antes da implementação sempre que aplicável:
+
+1. **Autorização (G.5, núcleo)**
+   - Erros de domínio: `NotFoundError` (R-04 → 404) e `ForbiddenError` (403).
+   - `src/server/auth/permissions.ts`: matriz C.3 como dados — cada acção com papéis e
+     âmbito (`ALL`, `DEPARTMENT`, `TUTOR`, `INTERVIEW`, `OWN`, `AGGREGATE`).
+   - `Principal` (userId, userType, papéis válidos, departamentos como chefe/delegações)
+     e `assertCan(principal, action, resource?)`.
+   - **Testes gerados da matriz (RF-AUT-11):** todas as combinações papel × acção ×
+     âmbito; IDOR com fixtures de dois departamentos, dois tutores e dois candidatos → 404.
+2. **Auditoria base (M17 MVP)**
+   - Serviço `audit()` com campos RF-AUD-02; enum de acções RF-AUD-03; `AuditLog` só de
+     acréscimo (Anexo L: INSERT+SELECT apenas); visualizador com filtros + CSV (RF-AUD-04)
+     para AUD (tudo), RH-G (negócio) e ADM (técnico).
+3. **Better Auth + M01 (autenticação e contas)**
+   - Gerar modelos com o CLI do Better Auth 1.7, reconciliar com o Anexo A → ADR-0002.
+   - `src/server/auth/better-auth.ts`: prismaAdapter (sqlserver), Microsoft Entra com
+     `tenantId` fixo (claim `oid`), e-mail+senha com `twoFactor` em modo local, cookies
+     `httpOnly`/`Secure`/`SameSite=Lax`; sessões: staff 8 h absoluta + 30 min inactividade;
+     candidato/estagiário 7 dias renováveis; route handler `/api/auth/[...all]`.
+   - Entrada: primeiro acesso Entra cria `STAFF` sem papéis → "Acesso pendente — contacte
+     o RH"; tenant estranho → `LOGIN_FAILED` com `TENANT_MISMATCH`.
+   - Candidato (RF-AUT-03): registo com aviso de privacidade obrigatório, consentimento
+     da bolsa (opcional), ALTCHA local, verificação de e-mail 24 h (N-01, gravada na
+     fila/outbox; envio real chega com M2/G.9).
+   - Senhas (RF-AUT-04): ≥10 caracteres, lista local das 10 000 mais comuns, sem conter
+     o e-mail. Recuperação (RF-AUT-05): token único 60 min, resposta neutra, termina
+     sessões. Mudança de e-mail (RF-AUT-08): senha actual + verificação do novo + aviso
+     ao antigo (N-29).
+   - Limites (RF-AUT-07): 5 falhas/15 min → captcha; 10 falhas → bloqueio 30 min + N-29;
+     registo 5/h/IP; recuperação 3/h/e-mail.
+   - Sessões (RF-AUT-06): ecrã "Sessões activas" com terminar cada uma.
+   - Papéis (RF-AUT-09): `SYSTEM_ADMIN` tudo; `HR_MANAGER` atribui `TUTOR`,
+     `DEPARTMENT_HEAD`, `HR_OFFICER`, `EXECUTIVE`; campos papel/departamento/início/fim/
+     motivo; ninguém a si próprio; auditado.
+   - "A minha conta" (RF-AUT-10): dados, senha, sessões, os meus dados (base RF-PDP-04)
+     e pedido de eliminação (base RF-PDP-05).
+4. **M02 (catálogos, parâmetros, administração)**
+   - Repositórios com âmbito + serviços + UI back-office para: locais (RF-ADM-01),
+     departamentos (02), instituições (03), áreas/cursos (04), disciplinas-chave (05),
+     competências (06), feriados nacionais Moçambique + locais (07), modelos de avaliação
+     com versões (08), modelos de documento com versões e estados DRAFT/APPROVED/RETIRED
+     (09), avisos de privacidade com versões (10), parâmetros `Setting` com Zod e
+     auditoria antigo/novo (11), directório de colaboradores CSV idempotente com
+     simulação e relatório por linha (12, RN-ADM-03), checklist de acolhimento (13),
+     página de saúde (14).
+   - RN-ADM-01/02: catálogo referenciado desactiva-se, nunca apaga-se; alterar modelo
+     cria nova versão; só um APPROVED por tipo.
+5. **Seeds sintéticos (Anexo F, R-01)**
+   - `prisma/seed/data/` em CSV/JSON: locais, departamentos, instituições, áreas/cursos,
+     disciplinas, competências, feriados (regra domingo→segunda), itens de checklist,
+     parâmetros por omissão; seed de desenvolvimento com utilizadores/papéis sintéticos.
+6. **Páginas de entrada e contas** (`/entrar`, `/registar`, "Acesso pendente", conta).
+7. **Testes de integração** com Testcontainers: repositórios com âmbito (fixtures 2
+   departamentos/2 tutores/2 candidatos), audit append-only, bloqueio de conta,
+   verificação de e-mail, importação CSV.
+8. **E2E (Playwright, 3 motores):** entrada local de staff pendente; registo de
+   candidato com aviso de privacidade; atribuição de papel pelo ADM/RH.
+9. `npm run check` verde → actualizar ESTADO/CHANGELOG → parar para validação.
+
+### Testes previstos (M1)
+
+- Unitários: validador de senha; matriz de permissões (gerado); feriados/dias úteis;
+  parser/normalizador do CSV do directório; validação Zod dos parâmetros.
+- Permissões: 100% da matriz + IDOR 404 (RF-AUT-11).
+- Integração: âmbito nos repositórios; append-only da auditoria; limites de tentativas;
+  tokens de verificação/recuperação de uso único.
+- E2E: três jornadas do ponto 8.
+
+### Bloqueios/decisões abertas que tocam M1
+
+- P-33/Q-004: sem remoto GitHub, o CI não corre (não bloqueia o desenvolvimento).
+- SSO Entra real só é verificável em homologação (precisa de registo da aplicação em
+  Azure pelo ICT); em desenvolvimento/testes usa `STAFF_AUTH_MODE=local`.
 
 ## Guião de demonstração (M0, dados sintéticos)
 
