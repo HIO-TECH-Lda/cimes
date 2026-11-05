@@ -1,0 +1,72 @@
+name: CI
+
+# G.12: npm ci → lint → tipos → unitários → integração (Testcontainers SQL Server)
+# → E2E de fumo → build → npm audit → verificação de licenças.
+# Node.js 26 LTS é a referência de execução (ADR-0001; desenvolvimento local usa v22).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Variáveis de ambiente sintéticas (só CI)
+        run: |
+          KEY32=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+          {
+            echo "PUBLIC_BASE_URL=http://localhost:3100"
+            echo "DATABASE_URL=sqlserver://localhost:1433;database=cimes;user=sa;password=CimesDev2027!x;encrypt=false;trustServerCertificate=true"
+            echo "DATABASE_MIGRATION_URL=$DATABASE_URL"
+            echo "DATABASE_POOL_MAX=5"
+            echo "BETTER_AUTH_SECRET=$KEY32$KEY32"
+            echo "FILE_STORAGE_PATH=/tmp/cimes-storage"
+            echo "FILE_ENCRYPTION_KEYS={\"kcitest\":\"$KEY32\"}"
+            echo "FILE_ENCRYPTION_ACTIVE_KEY_ID=kcitest"
+            echo "PII_ENCRYPTION_KEYS={\"pcitest\":\"$KEY32\"}"
+            echo "PII_ENCRYPTION_ACTIVE_KEY_ID=pcitest"
+            echo "PII_HMAC_KEY=$KEY32"
+            echo "MAIL_TRANSPORT=memory"
+          } >> "$GITHUB_ENV"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Testes unitários
+        run: npm run test
+
+      - name: Testes de integração (Testcontainers SQL Server)
+        run: npm run test:integration
+
+      - name: Instalar navegadores Playwright
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Testes E2E de fumo
+        run: npm run test:e2e:smoke
+
+      - name: Build
+        run: npm run build
+
+      - name: Auditoria de dependências de produção
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verificação de licenças (MIT, Apache-2.0, BSD, ISC, OFL)
+        run: node scripts/check-licenses.mjs
