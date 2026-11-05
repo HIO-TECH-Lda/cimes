@@ -148,6 +148,20 @@ async function seedCatalogs(prisma: PrismaClient): Promise<void> {
     });
   }
 
+  // Aviso de privacidade em vigor (RF-AUT-03/R-09): texto sintético de referência.
+  await prisma.privacyNoticeVersion.upsert({
+    where: { version: "2026-01" },
+    create: {
+      version: "2026-01",
+      title: "Aviso de privacidade do programa de estágios (dados sintéticos de demonstração)",
+      bodyMarkdown:
+        "Texto de demonstração (R-01). Descreve finalidades, bases de licitude, prazos de conservação e direitos do titular. Substituir pelo aviso oficial antes de produção.",
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-01-15T09:00:00Z"),
+    },
+    update: {},
+  });
+
   // Idiomas ficam no parâmetro catalog.languages (configurável, F.6).
 }
 
