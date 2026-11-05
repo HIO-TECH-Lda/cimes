@@ -1,4 +1,5 @@
 ﻿import { headers } from "next/headers";
+import Link from "next/link";
 
 import { pt } from "@/i18n/pt-MZ";
 import { AcessoNegado } from "@/app/app/acesso-negado";
@@ -48,6 +49,11 @@ export default async function UtilizadoresPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-10">
       <h1 className="text-2xl font-semibold">{pt.roles.titulo}</h1>
+      <p className="text-sm">
+        <Link href="/app/utilizadores/importar" className="underline">
+          {pt.roles.importarLink}
+        </Link>
+      </p>
       {params.msg ? (
         <Alert>
           <AlertDescription>{MSG[params.msg] ?? pt.app.acessoNegado}</AlertDescription>

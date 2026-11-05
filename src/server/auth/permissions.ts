@@ -134,6 +134,7 @@ export const PERMISSION_MATRIX: PermissionEntry[] = [
   { action: "catalog.technicalManage", grants: ["HR_MANAGER:ALL", "SYSTEM_ADMIN:ALL"] },
   { action: "settings.manage", grants: ["HR_MANAGER:ALL"] },
   { action: "roles.manage", grants: ["HR_MANAGER:ALL", "SYSTEM_ADMIN:ALL"] },
+  { action: "staffDirectory.import", grants: ["HR_MANAGER:ALL", "SYSTEM_ADMIN:ALL"] },
   { action: "audit.view", grants: ["HR_MANAGER:ALL", "SYSTEM_ADMIN:ALL", "AUDITOR:ALL"] },
   { action: "dsr.manage", grants: ["HR_OFFICER:ALL", "HR_MANAGER:ALL"] },
   { action: "retention.run", grants: ["HR_MANAGER:ALL"] },
