@@ -51,5 +51,10 @@ export function createRoleAssignmentRepository(prisma: PrismaClient) {
         data: { validTo: revokedAt },
       });
     },
+
+    /** Vê uma atribuição concreta (para verificar antes de terminar). */
+    async findById(id: string) {
+      return prisma.roleAssignment.findUnique({ where: { id } });
+    },
   };
 }
