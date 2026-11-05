@@ -16,6 +16,20 @@ import { systemClock, type Clock } from "@/server/infra/clock";
 
 const STAFF_INACTIVITY_MS = 30 * 60 * 1000;
 
+/**
+ * Última actividade de staff (RF-AUT-06): o mais recente entre o `lastSeenAt`
+ * e a criação da sessão. O próprio login é actividade — sem isto, um staff
+ * que volte depois de 30 min teria a sessão nova revogada e ficaria
+ * permanentemente impedido de reentrar.
+ */
+export function staffLastActivity(
+  lastSeenAt: Date | null,
+  sessionCreatedAt: Date,
+): Date {
+  if (lastSeenAt && lastSeenAt > sessionCreatedAt) return lastSeenAt;
+  return sessionCreatedAt;
+}
+
 type Auth = ReturnType<typeof getAuth>;
 type BetterAuthUser = Auth["$Infer"]["Session"]["user"];
 type BetterAuthSession = Auth["$Infer"]["Session"]["session"];
@@ -45,7 +59,7 @@ export async function getSessionPrincipal(
   const now = clock.now();
 
   if (user.userType === "STAFF") {
-    const lastSeen = user.lastSeenAt ?? result.session.createdAt;
+    const lastSeen = staffLastActivity(user.lastSeenAt, result.session.createdAt);
     if (now.getTime() - lastSeen.getTime() > STAFF_INACTIVITY_MS) {
       // RF-AUT-06: sessão de staff expira por inactividade de 30 minutos.
       await sessions.revokeByToken(result.session.token);
