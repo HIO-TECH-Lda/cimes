@@ -101,6 +101,23 @@ Parâmetros novos no `Setting` (seed + Zod): `internship.maxTotalMonths`,
 `eligibility.finalistMaxMonthsToGraduation`, `eligibility.maxMonthsSinceGraduation`,
 `eligibility.biExpiredPolicy`, `application.maxActivePerCycle`, `academic.passMark`.
 
+### Progresso M2
+
+- **Incremento 1 — base de M14 (concluído a 2026-11-05):** outbox com retentativas
+  1/5/30/120/720 min → `FAILED` + N-30, avisos na aplicação (RF-NOT-03/04), fila de
+  tarefas com lock e `ensureRecurring`, modelos React Email do Anexo E, transporte
+  dev (Mailpit) e worker a cada 15 s. Testes: 20 unitários + 5 de integração
+  (Testcontainers). ADR-0003 regista a instalação das dependências do Anexo L.
+- **Incremento 2 — domínio das vagas (concluído a 2026-11-05):** máquina D.2 como
+  dados (`src/server/domain/state-machines/opening.ts`, testadas todas as
+  transições), código `VAG-AAAA-NNNN` atómico (RF-VAG-05), esquema Zod do pedido
+  (RF-VAG-01, RN-VAG-02), serviço com âmbitos (R-04), fluxo de aprovação com N-21/
+  N-22 na mesma transacção (RF-VAG-02), publicação com janela (RF-VAG-03), edição
+  pós-publicação e perfil de score (RF-VAG-06), cancelamento com N-04, fecho
+  automático `openings.closeExpired` ligado ao worker a cada 5 minutos. Testes:
+  26 unitários + 5 de integração. Pesos por omissão do score ficam como Q-005
+  (P-36 provisório: 60/20/20).
+
 ### Bloqueios/decisões abertas que tocam M2
 
 - Divisor de PDF (RF-DOC-04) e conversão de imagens (RF-DOC-03) dependem de
